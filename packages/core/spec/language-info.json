@@ -1,0 +1,34 @@
+{
+  "id": "0177",
+  "description": "Produces developer integration recipes for the Learnosity Author API and item bank (Data API). Given a natural-language description of an authoring-integration task — 'embed the Learnosity item editor for this user', 'save this item to my item bank', 'list items tagged X' — L0177 verifies the canonical request construction and its get_spec output is a precise, host-language-neutral recipe: goal, preconditions, procedure (with the exact signature preimage), gotchas, and acceptance criteria. It does NOT author item content (that is L0176) and does NOT emit runnable code; it tells the developer exactly what to do and how to know they are done.",
+  "supported_item_types": [
+    "embed-editor",
+    "save-item",
+    "update-item",
+    "fetch-item",
+    "list-items",
+    "tag-items"
+  ],
+  "example_prompts": [
+    {
+      "prompt": "How do I embed the Learnosity item editor in my LMS for user u123 on domain lms.acme.edu, allowing MCQ and cloze widgets?",
+      "produces": "embed-editor",
+      "notes": "Names the operation (editor embed), the end-user identity, the serving domain (which must match the signing domain), and the allowed widget types — everything the Author API init request needs."
+    },
+    {
+      "prompt": "How do I save an authored item into my Learnosity item bank with my own consumer key and secret?",
+      "produces": "save-item",
+      "notes": "Item bank writes go through the Data API and require the caller's own credentials; the recipe covers signing and the /itembank/items request."
+    },
+    {
+      "prompt": "How do I list items in my Learnosity item bank filtered by a standards tag?",
+      "produces": "list-items",
+      "notes": "A Data API read; the recipe covers the request envelope, pagination, and the meta.status success check."
+    },
+    {
+      "prompt": "How do I tag existing item bank items with a Common Core standard so the Author Site can filter on them?",
+      "produces": "tag-items",
+      "notes": "Item metadata/tags via the Data API; the recipe explains item-level vs question-level tags and how the Author Site indexes them."
+    }
+  ]
+}

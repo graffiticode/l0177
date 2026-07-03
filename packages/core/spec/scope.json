@@ -1,0 +1,21 @@
+{
+  "id": "0177",
+  "summary": "Produces developer INTEGRATION RECIPES for the Learnosity Author API and item bank (Data API): a precise, host-language-neutral procedure — goal, preconditions, steps, gotchas, and acceptance criteria — for embedding the Learnosity item editor and for creating, updating, fetching, listing, and tagging items in the item bank. It emits a recipe to follow, NOT Learnosity item content and NOT runnable code.",
+  "in_scope": [
+    "How to embed the Learnosity Author API item editor in a host/LMS app (signed init request, allowed widget types, user identity)",
+    "How to correctly sign a Learnosity request (the HMAC signature preimage, field order, timestamp format, domain match)",
+    "How to save (create) an authored item into the Learnosity item bank via the Data API",
+    "How to update an existing item bank item",
+    "How to fetch a single item's definition from the item bank",
+    "How to list/search item bank items with filters",
+    "How to tag items and attach item metadata (standards, DOK, difficulty) so the Author Site can index them",
+    "The acceptance criteria that tell the developer their integration is correct (what 'done' looks like)"
+  ],
+  "out_of_scope": [
+    "Authoring the assessment item CONTENT itself (stems, options, answer keys, passages) — that is L0176; this dialect describes how to INTEGRATE, it does not write items",
+    "Delivering/administering assessments to learners (Items API init, sessions, embed lifecycle, SSO) — that is the delivery integration dialect (L0178)",
+    "Reading responses, scores, mastery, or building reports/analytics — that is the analytics integration dialect (L0179)",
+    "Integrations for any platform other than Learnosity",
+    "Emitting runnable host-language code — the recipe is a language-neutral procedure the caller implements in their own stack"
+  ]
+}

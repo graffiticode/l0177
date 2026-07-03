@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "L0177",
+  "title": "L0177",
+  "description": "Output of an L0177 program — a structural PROOF that the described authoring-integration operation's request constructs and signs correctly. This is NOT the deliverable; the developer-facing recipe is produced by get_spec. Atomic dialect (not a composition upstream).",
+  "type": "object",
+  "properties": {
+    "verified": {
+      "description": "True when the operation and its parameters validated and the request was structurally constructed.",
+      "type": "boolean"
+    },
+    "operation": {
+      "description": "The authoring-integration operation.",
+      "type": "string",
+      "enum": ["embed-editor", "save-item", "update-item", "fetch-item", "list-items", "tag-items"]
+    },
+    "signed": {
+      "description": "True when the request was locally HMAC-signed as a structural check (no network call).",
+      "type": "boolean"
+    },
+    "signedWithRealCredentials": {
+      "description": "True when the caller supplied their own learnosity-key/secret (vs. a placeholder used only to exercise signing).",
+      "type": "boolean"
+    }
+  }
+}

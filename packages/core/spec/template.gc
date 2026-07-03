@@ -1,0 +1,6 @@
+integration {
+  operation: "embed-editor",
+  user: "u123",
+  domain: "lms.example.edu",
+  widgets: ["mcq", "clozetext"]
+}..

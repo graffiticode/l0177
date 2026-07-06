@@ -1,6 +1,8 @@
-integration {
-  operation: "embed-editor",
-  user: "u123",
+author-item-edit {
   domain: "lms.example.edu",
-  widgets: ["mcq", "clozetext"]
+  user: { id: "u123" },
+  reference: "algebra-item-1",
+  allow_widgets: ["mcq", "clozetext"],
+  edit_widgets: true,
+  organisation_id: 100
 }..

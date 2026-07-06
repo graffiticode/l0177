@@ -1,34 +1,32 @@
 {
   "id": "0177",
-  "description": "Produces developer integration recipes for the Learnosity Author API and item bank (Data API). Given a natural-language description of an authoring-integration task — 'embed the Learnosity item editor for this user', 'save this item to my item bank', 'list items tagged X' — L0177 verifies the canonical request construction and its get_spec output is a precise, host-language-neutral recipe: goal, preconditions, procedure (with the exact signature preimage), gotchas, and acceptance criteria. It does NOT author item content (that is L0176) and does NOT emit runnable code; it tells the developer exactly what to do and how to know they are done.",
+  "description": "Produces developer integration recipes for the Learnosity Author API. The client describes an integration design — which authoring experience to embed (item editor, item browser, activity editor, activity list) and how it's configured (allowed widget types, editor permissions, item bank, locked mode). L0177 validates the design, flags holes (missing required properties like the serving domain, the author user id, or the item reference) as steering warnings, and via get_spec returns a host-language-neutral recipe: goal, preconditions, procedure, gotchas, and runnable verification steps. It does NOT author item content (that is L0176) and does NOT emit runnable code.",
   "supported_item_types": [
-    "embed-editor",
-    "save-item",
-    "update-item",
-    "fetch-item",
-    "list-items",
-    "tag-items"
+    "author-item-edit",
+    "author-item-list",
+    "author-activity-edit",
+    "author-activity-list"
   ],
   "example_prompts": [
     {
-      "prompt": "How do I embed the Learnosity item editor in my LMS for user u123 on domain lms.acme.edu, allowing MCQ and cloze widgets?",
-      "produces": "embed-editor",
-      "notes": "Names the operation (editor embed), the end-user identity, the serving domain (which must match the signing domain), and the allowed widget types — everything the Author API init request needs."
+      "prompt": "How do I embed the Learnosity item editor in my LMS for author u123 on lms.acme.edu, allowing only MCQ and cloze questions?",
+      "produces": "author-item-edit",
+      "notes": "Names the experience (item editor), the serving domain, the author identity, and restricts widget types — a well-specified design with few holes."
     },
     {
-      "prompt": "How do I save an authored item into my Learnosity item bank with my own consumer key and secret?",
-      "produces": "save-item",
-      "notes": "Item bank writes go through the Data API and require the caller's own credentials; the recipe covers signing and the /itembank/items request."
+      "prompt": "I want to embed a Learnosity item browser so my authors can find and open existing items.",
+      "produces": "author-item-list",
+      "notes": "The item_list view; the recipe covers signing + wiring, and warns that domain and user id are still needed."
     },
     {
-      "prompt": "How do I list items in my Learnosity item bank filtered by a standards tag?",
-      "produces": "list-items",
-      "notes": "A Data API read; the recipe covers the request envelope, pagination, and the meta.status success check."
+      "prompt": "How do I embed the Learnosity activity editor so instructional designers can assemble activities from our item bank?",
+      "produces": "author-activity-edit",
+      "notes": "The activity_edit view; reference is optional (new vs existing activity)."
     },
     {
-      "prompt": "How do I tag existing item bank items with a Common Core standard so the Author Site can filter on them?",
-      "produces": "tag-items",
-      "notes": "Item metadata/tags via the Data API; the recipe explains item-level vs question-level tags and how the Author Site indexes them."
+      "prompt": "Embed the Learnosity item editor in read-only mode for a review workflow.",
+      "produces": "author-item-edit",
+      "notes": "Uses locked (read-only) edit mode; the verification steps check the editor renders read-only."
     }
   ]
 }

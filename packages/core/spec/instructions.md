@@ -1,69 +1,69 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
-# Dialect L0177 — Learnosity Authoring Integration (recipe oracle)
+# Dialect L0177 — Learnosity Author API integration (recipe oracle)
 
-L0177 does **not** author Learnosity item content. It models an authoring-**integration** operation and its parameters. The compiled output is a structural proof; the developer-facing deliverable is the **`get_spec` recipe**.
+L0177 does **not** author item content (that is L0176). The client describes an *integration design* — which Learnosity **Author API** authoring experience to embed in their app, and how it's configured. L0177 validates the design, flags **holes** (missing required properties) as steering warnings, and — via `get_spec` — returns an **implementation recipe with verification steps**.
 
-## Writing the program
+## The four constructs (one per Author API mode)
 
-A program is exactly one `integration { ... }` record, terminated with `..`:
+A program is exactly one construct taking a record, terminated with `..`. The Author API has **no in-UI view switching**, so each experience is a separate integration (a separate page/init):
 
+- `author-item-edit { … }` — embed the **Item editor** (create/edit one item). Requires `reference`.
+- `author-item-list { … }` — embed the **Item browser/list**.
+- `author-activity-edit { … }` — embed the **Activity editor**. `reference` optional (omit = new activity; set = edit existing).
+- `author-activity-list { … }` — embed the **Activity browser/list**.
+
+## Design record fields
+
+Shared (all constructs):
+- **`domain`** (string, required) — the host serving the editor; the Author API signature binds to it.
+- **`user`** (record, required) — `{ id (required), email?, firstname?, lastname? }`; the author, recorded in the item-bank audit trail.
+- **`organisation_id`** (number, optional) — which item bank to load from.
+- **`locked`** (boolean, optional) — initialize in locked (read-only) edit mode (for review/preview).
+
+Editing constructs only (`author-item-edit`, `author-activity-edit`):
+- **`reference`** (string) — the item/activity to edit, or a new reference to create.
+- **`allow_widgets`** (list) — restrict the question types authors can add (subset of the widget types below). The compiler maps this single list to `config.dependencies.questions_api.init_options.widgetTypes`, `config.widget_templates.filter.widgettype`, and `config.item_edit.widget_types.enabled`.
+- editor permissions (booleans): `edit_widgets`, `delete_widgets`, `edit_tags`, `show_tags`, `dynamic_content`, `shared_passage`.
+
+Widget types: `mcq, shorttext, longtext, plaintext, clozetext, clozeassociation, clozedropdown, clozeformula, clozeinlinetext, choicematrix, classification, orderlist, sortlist, formula, graphplotting, highlighttext, hotspot, tokenhighlight, numberline, association, fillintheblanks, imageclozeassociation, imageclozetext`.
+
+Example:
 ```
-integration {
-  operation: "embed-editor",
-  user: "u123",
+author-item-edit {
   domain: "lms.acme.edu",
-  widgets: ["mcq", "clozetext"]
+  user: { id: "u123" },
+  reference: "algebra-item-1",
+  allow_widgets: ["mcq", "clozetext"],
+  edit_widgets: true, delete_widgets: false,
+  organisation_id: 100
 }..
 ```
 
-Fields:
-- **operation** (required): one of `embed-editor`, `save-item`, `update-item`, `fetch-item`, `list-items`, `tag-items`.
-- **user** (required for `embed-editor`): a stable end-user id.
-- **domain** (required for `embed-editor`): the host's serving domain; it MUST equal the request's signing domain.
-- **widgets** (optional): array of Learnosity widget-type keys to allow in the editor — a subset of `mcq, shorttext, longtext, clozetext, plaintext, fillintheblanks, association, choicematrix, classification, clozeassociation, clozedropdown, clozeformula, clozeinlinetext, formula, graphplotting, highlighttext, hotspot, imageclozeassociation, imageclozetext, numberline, orderlist, sortlist, tokenhighlight`.
-- **itembank** (optional): `"byo"` to indicate the caller supplies their own credentials.
-- **reference** (optional): an existing item reference (for `update-item` / `fetch-item`).
-- **tags** (optional): array of tag strings (for `tag-items`).
+Map the client's request to the closest construct and fill the fields they gave. **Do not invent `domain`, `user`, or `reference`** — leave them out, and the compiler flags them as design holes for the client to supply.
 
-Map the user's request to the closest operation and fill in the specifics they gave. Do not invent a `domain` or `user`. To supply the caller's Learnosity credentials for a live item-bank write, prefix the program with `set-var "learnosity-key" "<key>" set-var "learnosity-secret" "<secret>"` (both together).
+## Warnings are repair signals
 
-## Canonical Learnosity authoring-integration knowledge
+The compiler returns `data.warnings` — imperative, specific steering hints. **Design holes (missing required properties) come first**; once filled, specificity advisories (restrict widget types, set permissions, pick an item bank) surface. The client reads the warnings and refines the design (via `update_item`) until it's complete.
 
-This is the ground truth the recipe conveys.
+## Canonical Learnosity Author API knowledge (the recipe draws on this)
 
-### Author API — embedding the item editor
-- Server-side, build an `author` init request and sign it with the consumer secret. Send only the **signed request** to the browser and call `LearnosityAuthor.init(signedRequest)`.
-- The signed request has a `security` object and a `request` object. `security = { consumer_key, domain, timestamp, user_id }`. The consumer **secret** is used to compute the signature but is **never** sent to the browser.
-- `request.mode = "item_edit"` (or `"item_list"`); the allowed widget types go in `config.dependencies.questions_api.init_options.widgetTypes` and `config.item_edit.widget_types.enabled`.
-
-### Signature — the exact preimage
-Prefer the official Learnosity SDK for your host language; it computes this for you. If signing manually, the signature is:
-
-```
-signature = SHA256_hex( join("_", [ consumer_key, domain, timestamp, user_id, consumer_secret, request_json ]) )
-```
-
-where:
-- `timestamp` is UTC in `YYYYMMDD-HHMM` format.
-- `request_json` is the exact JSON string of the `request` object you transmit — byte-identical.
-- `user_id` is included for user-scoped services (Author/Items); omit its slot for service requests with no user.
-- Some Data API calls append an `action` ("get"/"set") as the final field of the preimage.
-
-### Data API — item bank
-- Item-bank reads/writes go through the Data API: POST form-encoded `{ security, request, action }` to `https://data.learnosity.com/<version>/itembank/items` (or `/itembank/questions`, `/itembank/tags`).
-- `action`: `"get"` to read/list, `"set"` to create/update.
-- Response: success is `meta.status === true`; on `false` or a non-2xx status it failed. Paginate via `meta.next`.
-- Item-bank writes REQUIRE the caller's own consumer key/secret (not a shared/demo key).
+- **Init:** server-side, build a signed request and call `LearnosityAuthor.init(initObject, callbacks, "learnosity-author")`. `initObject = { security, request: { mode, reference?, config, user } }`.
+- **Signing is SDK-handled:** use the official Learnosity **server-side SDK** for your language (.NET / Java / Node.js / PHP / Python / Ruby) to generate the `security` object from your consumer key + secret. Do not hand-roll signing unless unavoidable.
+- **`security`** = `{ consumer_key, domain, timestamp (UTC, `YYYYMMDD-HHMM`), signature }`. The consumer **secret** signs the request but is **never** sent to the browser. `domain` MUST equal the host actually serving the page — a mismatch is the **#1 cause of a 401**.
+- **`mode`** selects the view; there is no in-UI switch between the item/activity list/edit views — build a separate page/init per experience.
+- **Widget-type restriction:** `config.dependencies.questions_api.init_options.widgetTypes` (+ `config.widget_templates.filter.widgettype` + `config.item_edit.widget_types.enabled`), kept consistent.
+- **Client-side wiring:** provide a `readyListener` (fires when initialized) and an `errorListener` (`e.code` / `e.message` / `e.name`); optionally `assetRequest` (your DAM) and `customButtons`.
 
 ### Gotchas
-- The secret appears in the signature preimage but is NEVER transmitted.
-- `domain` in the security object MUST equal the host actually serving the page — a mismatch is the #1 cause of a 401.
-- Timestamp skew beyond Learnosity's tolerance (a few minutes) fails; use UTC and the `YYYYMMDD-HHMM` format.
-- The `request` used to compute the signature must be byte-identical to the one transmitted — serialize it once.
-- Saved items land as drafts (`status: unpublished`); publishing is an Author Site action.
+- `domain` mismatch → 401.
+- consumer secret exposed to the browser → security hole (server-only).
+- stale/ skewed timestamp → failure (use UTC, fresh per request).
+- no `errorListener` → init failures are silent.
 
-### Acceptance criteria
-- `embed-editor`: the browser `LearnosityAuthor.init` fires its ready callback with no error; mutating any signed field yields a 401; the transmitted `security` contains no secret.
-- `save-item` / `list-items` / etc.: the Data API response has `meta.status === true`; a re-signed request with a tampered field is rejected.
+### Acceptance criteria (what "done" looks like)
+- `readyListener` fires with no error and the editor renders in your target element.
+- `errorListener` catches a deliberately-tampered signature (a 401-class error).
+- the init payload sent to the browser contains no consumer secret.
+- the `domain` in `security` equals the host serving the page.
 
-OUT_OF_SCOPE: authoring item content (→ L0176); assessment delivery/sessions/SSO (→ L0178); analytics/reports (→ L0179); emitting host-language code (the recipe is language-neutral).
+OUT_OF_SCOPE: authoring item **content** (→ L0176); assessment delivery and analytics (future L0177 modes); emitting runnable host-language code (the recipe is language-neutral).

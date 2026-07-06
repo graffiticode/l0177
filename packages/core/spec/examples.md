@@ -1,13 +1,12 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # L0177 Examples
 
-Example natural-language requests for the Learnosity Authoring Integration oracle,
-and the operation each maps to. L0177 returns a recipe (via `get_spec`), not item content.
+Example natural-language requests for the Learnosity Author API integration oracle,
+and the construct each maps to. L0177 returns a recipe (via `get_spec`), not item content.
 
-1. "How do I embed the Learnosity item editor for user u123 on lms.acme.edu, allowing MCQ and cloze widgets?" → `embed-editor`
-2. "Embed the Learnosity author UI restricted to short-text and formula question types." → `embed-editor`
-3. "How do I save an authored item into my Learnosity item bank with my own key and secret?" → `save-item`
-4. "Update the item bank item with reference artcompiler-item-42." → `update-item`
-5. "Fetch the definition of item bank item artcompiler-item-42." → `fetch-item`
-6. "List items in my item bank filtered by a Common Core standard tag." → `list-items`
-7. "Tag these item bank items with CCSS.MATH.6.EE so the Author Site can filter them." → `tag-items`
+1. "How do I embed the Learnosity item editor for author u123 on lms.acme.edu, allowing only MCQ and cloze?" → `author-item-edit`
+2. "Embed the Learnosity item editor in read-only mode for a review workflow." → `author-item-edit` (`locked: true`)
+3. "Let authors edit item algebra-item-1, but not delete widgets." → `author-item-edit` (`reference`, `delete_widgets: false`)
+4. "Embed a Learnosity item browser so authors can find and open existing items." → `author-item-list`
+5. "Embed the Learnosity activity editor so designers can assemble activities from our item bank." → `author-activity-edit`
+6. "Show a browsable list of our Learnosity activities." → `author-activity-list`

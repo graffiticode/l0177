@@ -2,25 +2,27 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "L0177",
   "title": "L0177",
-  "description": "Output of an L0177 program — a structural PROOF that the described authoring-integration operation's request constructs and signs correctly. This is NOT the deliverable; the developer-facing recipe is produced by get_spec. Atomic dialect (not a composition upstream).",
+  "description": "Output of an L0177 program — the normalized Author API integration design plus steering warnings. This is NOT the deliverable; the developer-facing recipe is produced by get_spec. Atomic dialect (not a composition upstream).",
   "type": "object",
   "properties": {
-    "verified": {
-      "description": "True when the operation and its parameters validated and the request was structurally constructed.",
-      "type": "boolean"
-    },
-    "operation": {
-      "description": "The authoring-integration operation.",
+    "mode": {
+      "description": "The Author API view the design targets.",
       "type": "string",
-      "enum": ["embed-editor", "save-item", "update-item", "fetch-item", "list-items", "tag-items"]
+      "enum": ["item_edit", "item_list", "activity_edit", "activity_list"]
     },
-    "signed": {
-      "description": "True when the request was locally HMAC-signed as a structural check (no network call).",
+    "domain": { "description": "The serving domain the signature binds to.", "type": "string" },
+    "user": { "description": "The author identity (id required).", "type": "object" },
+    "reference": { "description": "The item/activity being edited (editing views).", "type": "string" },
+    "allow_widgets": { "description": "Restricted set of allowed widget types.", "type": "array", "items": { "type": "string" } },
+    "organisation_id": { "description": "Which item bank to load from.", "type": "number" },
+    "complete": {
+      "description": "True when the design has no unfilled required properties (holes).",
       "type": "boolean"
     },
-    "signedWithRealCredentials": {
-      "description": "True when the caller supplied their own learnosity-key/secret (vs. a placeholder used only to exercise signing).",
-      "type": "boolean"
+    "warnings": {
+      "description": "Steering hints: design holes first (missing required properties), then specificity advisories. The client refines the design until these clear.",
+      "type": "array",
+      "items": { "type": "string" }
     }
   }
 }

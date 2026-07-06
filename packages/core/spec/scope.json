@@ -1,20 +1,18 @@
 {
   "id": "0177",
-  "summary": "Produces developer INTEGRATION RECIPES for the Learnosity Author API and item bank (Data API): a precise, host-language-neutral procedure — goal, preconditions, steps, gotchas, and acceptance criteria — for embedding the Learnosity item editor and for creating, updating, fetching, listing, and tagging items in the item bank. It emits a recipe to follow, NOT Learnosity item content and NOT runnable code.",
+  "summary": "Produces developer INTEGRATION RECIPES for the Learnosity Author API — a precise, host-language-neutral procedure (goal, preconditions, steps, gotchas, verification steps) for embedding and configuring an integrated item/activity authoring experience (the Learnosity item/activity editor and browser) in a host app. The client describes the integration design; L0177 flags holes in the design and returns how to implement it. It emits a recipe to follow, NOT Learnosity item content and NOT runnable code.",
   "in_scope": [
-    "How to embed the Learnosity Author API item editor in a host/LMS app (signed init request, allowed widget types, user identity)",
-    "How to correctly sign a Learnosity request (the HMAC signature preimage, field order, timestamp format, domain match)",
-    "How to save (create) an authored item into the Learnosity item bank via the Data API",
-    "How to update an existing item bank item",
-    "How to fetch a single item's definition from the item bank",
-    "How to list/search item bank items with filters",
-    "How to tag items and attach item metadata (standards, DOK, difficulty) so the Author Site can index them",
-    "The acceptance criteria that tell the developer their integration is correct (what 'done' looks like)"
+    "How to embed the Learnosity Author API item editor (item_edit) in a host/LMS app",
+    "How to embed the item browser/list (item_list), activity editor (activity_edit), or activity list (activity_list)",
+    "How to configure the authoring experience: allowed widget/question types, editor permissions (edit/delete widgets, edit tags), shared passages, dynamic content, locked (read-only) mode, which item bank",
+    "How to sign the Author API init request with the official Learnosity server-side SDK, and the domain-match / timestamp rules",
+    "How to wire the client-side readyListener / errorListener callbacks",
+    "The verification steps that tell the developer their authoring integration works (what 'done' looks like)"
   ],
   "out_of_scope": [
-    "Authoring the assessment item CONTENT itself (stems, options, answer keys, passages) — that is L0176; this dialect describes how to INTEGRATE, it does not write items",
-    "Delivering/administering assessments to learners (Items API init, sessions, embed lifecycle, SSO) — that is the delivery integration dialect (L0178)",
-    "Reading responses, scores, mastery, or building reports/analytics — that is the analytics integration dialect (L0179)",
+    "Authoring the assessment item CONTENT itself (stems, options, answer keys, passages) — that is L0176; this dialect describes how to INTEGRATE the authoring experience, it does not write items",
+    "Creating/managing items programmatically via the Data API (item bank CRUD) — that is L0176's surface; a Data API integration mode may be added to L0177 later",
+    "Delivering/administering assessments to learners (Items API) and reading responses/scores/reports (Reports API) — future L0177 modes",
     "Integrations for any platform other than Learnosity",
     "Emitting runnable host-language code — the recipe is a language-neutral procedure the caller implements in their own stack"
   ]

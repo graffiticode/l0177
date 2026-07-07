@@ -4,7 +4,7 @@
   "in_scope": [
     "How to embed the Learnosity Author API item editor (item_edit) in a host/LMS app",
     "How to embed the item browser/list (item_list), activity editor (activity_edit), or activity list (activity_list)",
-    "How to configure the authoring experience: allowed widget/question types, editor permissions (edit/delete widgets, edit tags), shared passages, dynamic content, locked (read-only) mode, which item bank",
+    "How to configure the authoring experience: allowed widget/question types, editor permissions (edit/delete widgets, edit/show tags), shared passages, dynamic content, container sizing, which item bank",
     "How to sign the Author API init request with the official Learnosity server-side SDK, and the domain-match / timestamp rules",
     "How to wire the client-side readyListener / errorListener callbacks",
     "The verification steps that tell the developer their authoring integration works (what 'done' looks like)"

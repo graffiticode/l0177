@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
-// Unit tests for the L0177 Author API integration oracle. The compiled `data` is
-// a normalized echo of the design plus `warnings` (steering hints). These assert
-// the validation, the design-hole warnings, progressive disclosure, cross-field
-// coherence, and the rare error path.
+// Unit tests for the L0177 Author API integration oracle. Uniform surface: every
+// property is an arity-2 kebab function; members are arity-1; views select the
+// mode; widget-type enum values are UPPERCASE tags. These assert per-property
+// validation, view/mode mapping, design-hole warnings, progressive disclosure,
+// cross-context coherence, and that unknown properties are parse errors.
 import { describe, test, expect } from "vitest";
 import { parser } from "@graffiticode/parser";
 import { compiler, lexicon } from "./index.js";
@@ -17,73 +18,77 @@ async function compile(src: string, data: any = {}, config: any = {}): Promise<a
     });
   });
 }
-
 const hasWarning = (out: any, needle: string) =>
   (out.warnings || []).some((w: string) => w.toLowerCase().includes(needle.toLowerCase()));
 
-describe("design completeness", () => {
+const COMPLETE = `author-embed
+  domain "lms.acme.edu"
+  user-id "u123"
+  reference "algebra-item-1"
+  organisation-id 123
+  allow-widgets [MCQ CLOZE-TEXT FORMULA]
+  item-edit [
+    item back true scoring true reference-prefix "LEAR_" {}
+    widget edit true delete false {}
+  ]
+  container height 600 {}
+  {}..`;
+
+describe("complete design + tags", () => {
   test("a fully-specified item-edit design compiles with no warnings", async () => {
-    const out = await compile(
-      'author-item-edit { domain: "lms.acme.edu", user: { id: "u123" }, reference: "item-1", allow_widgets: ["mcq", "clozetext"], edit_widgets: true, organisation_id: 100 }..',
-    );
+    const out = await compile(COMPLETE);
     expect(out.mode).toBe("item_edit");
     expect(out.complete).toBe(true);
     expect(out.warnings).toEqual([]);
-    expect(out.allow_widgets).toEqual(["mcq", "clozetext"]);
+    expect(out.allow_widgets).toEqual(["mcq", "clozetext", "formula"]); // uppercase tags mapped
+    expect(out.config.item).toMatchObject({ back: true, scoring: true, "reference-prefix": "LEAR_" });
+    expect(out.config.widget).toEqual({ edit: true, delete: false });
   });
 
-  test("each construct maps to its Author API mode", async () => {
-    const list = await compile('author-item-list { domain: "d", user: { id: "u" } }..');
-    expect(list.mode).toBe("item_list");
-    const act = await compile('author-activity-list { domain: "d", user: { id: "u" } }..');
-    expect(act.mode).toBe("activity_list");
+  test("each view function maps to its Learnosity mode", async () => {
+    const al = await compile('author-embed domain "d" user-id "u" activity-list [] {}..');
+    expect(al.mode).toBe("activity_list");
+    expect(hasWarning(al, "isn't fully modeled yet")).toBe(true);
   });
 });
 
-describe("design-hole warnings (dominant)", () => {
-  test("an empty item-edit design flags domain, author, and reference holes", async () => {
-    const out = await compile("author-item-edit {}..");
+describe("design holes (progressive disclosure)", () => {
+  test("no view flags the view hole", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" {}..');
+    expect(out.complete).toBe(false);
+    expect(hasWarning(out, "which authoring view")).toBe(true);
+  });
+
+  test("bare item-edit flags domain, author, reference; suppresses specificity", async () => {
+    const out = await compile("author-embed item-edit [ item {} ] {}..");
+    expect(out.mode).toBe("item_edit");
     expect(out.complete).toBe(false);
     expect(hasWarning(out, "domain")).toBe(true);
     expect(hasWarning(out, "author")).toBe(true);
     expect(hasWarning(out, "reference")).toBe(true);
+    expect(hasWarning(out, "item bank")).toBe(false);
   });
-});
 
-describe("progressive disclosure", () => {
-  test("with holes filled, specificity advisories surface instead", async () => {
-    const out = await compile(
-      'author-item-edit { domain: "d", user: { id: "u" }, reference: "r" }..',
-    );
+  test("holes filled → specificity advisories surface", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" reference "r" item-edit [ item {} ] {}..');
     expect(out.complete).toBe(true);
-    // holes are gone; specificity advisories now appear
-    expect(hasWarning(out, "domain")).toBe(false);
-    expect(hasWarning(out, "widget types")).toBe(true);
-    expect(hasWarning(out, "permissions")).toBe(true);
+    expect(hasWarning(out, "allow-widgets")).toBe(true);
+    expect(hasWarning(out, "item bank")).toBe(true);
   });
 });
 
-describe("cross-field coherence", () => {
-  test("edit toggles in a list view warn (misplaced), not error", async () => {
-    const out = await compile(
-      'author-item-list { domain: "d", user: { id: "u" }, edit_widgets: true }..',
-    );
-    expect(out.mode).toBe("item_list");
-    expect(hasWarning(out, "ignored here")).toBe(true);
+describe("per-property + cross-context validation", () => {
+  test("a wrong-typed property warns", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" reference "r" item-edit [ item back "yes" {} ] {}..');
+    expect(hasWarning(out, "back must be true or false")).toBe(true);
   });
-});
 
-describe("value checks", () => {
-  test("an unknown widget type warns (not a hard error)", async () => {
-    const out = await compile(
-      'author-item-edit { domain: "d", user: { id: "u" }, reference: "r", allow_widgets: ["notawidget"] }..',
-    );
-    expect(hasWarning(out, "aren't learnosity widget types")).toBe(true);
+  test("a property used in the wrong member warns", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" reference "r" item-edit [ item edit true {} ] {}..');
+    expect(hasWarning(out, `item: "edit" isn't a valid item property`)).toBe(true);
   });
-});
 
-describe("rare error path", () => {
-  test("a non-record argument errors", async () => {
-    await expect(compile('author-item-edit "nope"..')).rejects.toBeTruthy();
+  test("an unknown property is a parse error", async () => {
+    await expect(compile('author-embed item-edit [ item wibble true {} ] {}..')).rejects.toBeTruthy();
   });
 });

@@ -6,15 +6,28 @@
   "type": "object",
   "properties": {
     "mode": {
-      "description": "The Author API view the design targets.",
+      "description": "The Author API view the design targets (selected by the view function).",
       "type": "string",
       "enum": ["item_edit", "item_list", "activity_edit", "activity_list"]
     },
     "domain": { "description": "The serving domain the signature binds to.", "type": "string" },
-    "user": { "description": "The author identity (id required).", "type": "object" },
+    "user": {
+      "description": "The author identity (only id is required).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "firstname": { "type": "string" },
+        "lastname": { "type": "string" }
+      }
+    },
     "reference": { "description": "The item/activity being edited (editing views).", "type": "string" },
-    "allow_widgets": { "description": "Restricted set of allowed widget types.", "type": "array", "items": { "type": "string" } },
     "organisation_id": { "description": "Which item bank to load from.", "type": "number" },
+    "allow_widgets": { "description": "Allowed Learnosity widget types (mapped from UPPERCASE tags).", "type": "array", "items": { "type": "string" } },
+    "config": { "description": "The view's members, folded by kind (e.g. { item, widget, settings }).", "type": "object" },
+    "container": { "description": "Author API container options.", "type": "object" },
+    "widget_templates": { "description": "Widget editor options.", "type": "object" },
+    "global": { "description": "Global Author API options.", "type": "object" },
     "complete": {
       "description": "True when the design has no unfilled required properties (holes).",
       "type": "boolean"

@@ -1,10 +1,10 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
-You are given the source of a Learnosity **Author API** integration design (one `author-*` construct with a record of design properties) in this dialect, plus the dialect's canonical knowledge above. Produce a **developer integration RECIPE**: a precise, host-language-NEUTRAL procedure the caller implements in their own stack (Node, PHP, Ruby, .NET, …) to embed the described authoring experience.
+You are given the source of a Learnosity **Author API** integration design (an `author-embed` program — a view function plus a chain of property functions) in this dialect, plus the dialect's canonical knowledge above. Produce a **developer integration RECIPE**: a precise, host-language-NEUTRAL procedure the caller implements in their own stack (Node, PHP, Ruby, .NET, …) to embed the described authoring experience.
 
 Output these sections, in this order, as Markdown:
 
 ## Goal
-One or two sentences: the authoring experience the developer will have working when done, specialized to the construct and the design's specifics (interpolate mode, domain, user, reference, allowed widget types, permissions, item bank).
+One or two sentences: the authoring experience the developer will have working when done, specialized to the view and the design's specifics (interpolate mode, domain, user, reference, allowed widget types, editor options, item bank).
 
 ## Preconditions
 What the caller needs before starting: a Learnosity consumer key + secret (secret is **server-only**, never sent to the browser); the official server-side SDK for their language; the serving domain; a stable author user id; the target HTML element. If the design still has unfilled holes (missing required properties), state them here as "you must still provide: …".
@@ -24,7 +24,7 @@ A concrete, ordered, runnable acceptance checklist the developer runs against TH
 Add checks specific to the design (e.g. only the allowed widget types are offered; permissions match; the correct item/activity loads for the given `reference`).
 
 Rules:
-- Describe the procedure for the SPECIFIC construct + design properties present; don't cover modes the design didn't ask for.
+- Describe the procedure for the SPECIFIC view + design properties present; don't cover views the design didn't ask for.
 - Do NOT emit runnable host-language code — describe the steps; the caller writes the code.
 - Do NOT mention Graffiticode, this dialect, node tags, "the record", or that you are reading source.
 - Output only the recipe. No preamble, no surrounding code fences.

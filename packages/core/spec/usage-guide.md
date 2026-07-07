@@ -10,28 +10,31 @@ L0177 is a developer-integration oracle for the Learnosity **Author API**: it do
 ## Workflow
 
 1. `list_languages(domain: "learnosity")` and pick L0177 when the task is *how to integrate a Learnosity authoring experience* — not authoring an item's content.
-2. `create_item("L0177", "<the integration design, with your specifics>")` — name the experience and the details you have (domain, author id, item reference, allowed question types, permissions).
+2. `create_item("L0177", "<the integration design, with your specifics>")` — name the experience and the details you have (domain, author id, item reference, allowed question types, editor options).
 3. `get_item(item_id)` — returns the normalized design plus `warnings` (design holes first, then specificity advisories). Refine with `update_item` until the warnings clear.
 4. `get_spec(item_id)` — returns the recipe. Implement it and check your work against its verification steps.
 
-## The four experiences (constructs)
+## The four experiences (view functions)
 
-| Construct | Author API view | Notes |
-|-----------|-----------------|-------|
-| `author-item-edit` | Item editor (create/edit one item) | requires a `reference` |
-| `author-item-list` | Item browser/list | — |
-| `author-activity-edit` | Activity editor | `reference` optional (new vs existing) |
-| `author-activity-list` | Activity browser/list | — |
+The view function you use *is* the mode (there's no in-UI switch — each is a separate page/integration):
 
-There is no in-UI switch between these views — each is a separate page/integration.
+| View | Author API view | Notes |
+|------|-----------------|-------|
+| `item-edit` | Item editor (create/edit one item) | needs a `reference` |
+| `item-list` | Item browser/list | partially modeled |
+| `activity-edit` | Activity editor | `reference` optional; partially modeled |
+| `activity-list` | Activity browser/list | partially modeled |
 
 ## Writing a good design
 
+Everything is expressed in natural language — the generator writes the DSL. Give the details you have:
 - **Name the experience** (edit an item? browse items? build an activity?).
-- **Give the serving `domain`** — the signature binds to it; a mismatch is the #1 401.
-- **Give the author's `user` id** — recorded in the item-bank audit trail.
-- For editing, **give the item/activity `reference`**.
-- Optionally **restrict `allow_widgets`**, set editor permissions, pick an `organisation_id` (item bank), or use `locked` (read-only) mode.
+- **The serving domain** — the signature binds to it; a mismatch is the #1 401.
+- **The author's user id** — recorded in the item-bank audit trail.
+- For editing, **the item/activity reference**.
+- Optionally: **which question types authors may use**, editor options (edit/delete widgets, tags, dynamic content, shared passage), a **specific item bank**, container sizing.
+
+The compiler validates each property, so under-specified or inconsistent designs come back as clear steering warnings to refine.
 
 ## Out of scope
 

@@ -1,8 +1,11 @@
-author-item-edit {
-  domain: "lms.example.edu",
-  user: { id: "u123" },
-  reference: "algebra-item-1",
-  allow_widgets: ["mcq", "clozetext"],
-  edit_widgets: true,
-  organisation_id: 100
-}..
+author-embed
+  domain "lms.example.edu"
+  user-id "u123"
+  reference "algebra-item-1"
+  organisation-id 100
+  allow-widgets [MCQ CLOZE-TEXT]
+  item-edit [
+    item back true scoring true reference-prefix "LEAR_" {}
+    widget edit true delete false {}
+  ]
+  {}..

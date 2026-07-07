@@ -1,18 +1,32 @@
 // SPDX-License-Identifier: MIT
-// L0177 — Learnosity Author API integration oracle. Its lexicon = L0000's base
-// vocabulary + one head per Author API authoring experience (mode). Because the
-// Author API UI has no built-in view switching, a developer builds a separate
-// page/init per mode — so we model each as its own construct rather than one
-// head + a `mode` field. Each construct takes a record literal describing the
-// integration design; the record keys are ordinary keys validated by the
-// compiler (see compiler.ts), not tokens.
+// L0177 — Learnosity Author API integration oracle. Function-chain vocabulary:
+// one `author-embed` head plus one FUNCTION PER ATTRIBUTE, so the compiler has a
+// Checker/Transformer method per attribute and can validate each independently and
+// give targeted, per-function feedback (the l0176 attribute pattern).
+//
+//   author-embed
+//     mode "item-edit"
+//     domain "lms.acme.edu"
+//     user { id: "u123" }
+//     allow-widgets ["mcq", "clozetext"]
+//     item-permissions { edit_widgets: true, delete_widgets: false }
+//     content { dynamic_content: true, shared_passage: true }
+//     {}
 import { lexicon as base } from "@graffiticode/l0000";
 
 const additions = {
-  "author-item-edit": { tk: 1, name: "AUTHOR_ITEM_EDIT", cls: "function", length: 1, arity: 1 },
-  "author-item-list": { tk: 1, name: "AUTHOR_ITEM_LIST", cls: "function", length: 1, arity: 1 },
-  "author-activity-edit": { tk: 1, name: "AUTHOR_ACTIVITY_EDIT", cls: "function", length: 1, arity: 1 },
-  "author-activity-list": { tk: 1, name: "AUTHOR_ACTIVITY_LIST", cls: "function", length: 1, arity: 1 },
+  // head (arity 1: takes the record assembled by the attribute chain)
+  "author-embed": { tk: 1, name: "AUTHOR_EMBED", cls: "function", length: 1, arity: 1 },
+  // attribute functions (arity 2: value + continuation)
+  "mode": { tk: 1, name: "MODE", cls: "function", length: 2, arity: 2 },
+  "domain": { tk: 1, name: "DOMAIN", cls: "function", length: 2, arity: 2 },
+  "user": { tk: 1, name: "USER", cls: "function", length: 2, arity: 2 },
+  "reference": { tk: 1, name: "REFERENCE", cls: "function", length: 2, arity: 2 },
+  "allow-widgets": { tk: 1, name: "ALLOW_WIDGETS", cls: "function", length: 2, arity: 2 },
+  "item-permissions": { tk: 1, name: "ITEM_PERMISSIONS", cls: "function", length: 2, arity: 2 },
+  "content": { tk: 1, name: "CONTENT", cls: "function", length: 2, arity: 2 },
+  "organisation-id": { tk: 1, name: "ORGANISATION_ID", cls: "function", length: 2, arity: 2 },
+  "locked": { tk: 1, name: "LOCKED", cls: "function", length: 2, arity: 2 },
 };
 
 export const lexicon = { ...base, ...additions };

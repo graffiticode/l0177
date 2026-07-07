@@ -2,27 +2,22 @@
 /* Copyright (c) 2023, ARTCOMPILER INC */
 // L0177 — Learnosity Author API integration oracle.
 //
-// The client (an agent) describes an *integration design* — which authoring
-// experience it wants to embed and how it's configured. Each Author API mode is
-// its own construct (`author-item-edit`, `author-item-list`,
-// `author-activity-edit`, `author-activity-list`) taking a record literal whose
-// keys mirror Learnosity's own naming (underscores).
-//
-// The compiler is a SEMANTIC VALIDATOR + design-completeness scorer. It does not
-// sign or call Learnosity. It validates the design (do the values make sense? does
-// the configuration make sense?) and emits `data.warnings` — non-fatal, imperative,
-// specific steering hints, holes-first (progressive disclosure). The developer-facing
-// RECIPE (with verification steps) is produced by get_spec from the AST +
-// instructions.md + spec-directive.md. Hard errors are rare: only genuinely
-// incoherent, generator-fixable structure.
+// Function-chain vocabulary: one `author-embed` head plus one function per
+// attribute (mode, domain, user, allow-widgets, item-permissions, content, …).
+// Each attribute has its own Checker/Transformer method, so the compiler validates
+// EACH function independently and emits targeted, per-function feedback. Attribute
+// functions push value-level warnings; the `author-embed` head adds cross-field
+// coherence + design-completeness (holes). All warnings surface as `data.warnings`
+// (holes first — progressive disclosure). The developer-facing RECIPE (with
+// verification steps) is produced by get_spec from the AST + instructions.md +
+// spec-directive.md. Hard errors are rare.
 import {
   Checker as BaseChecker,
   Transformer as BaseTransformer,
   Compiler,
 } from "@graffiticode/l0000";
 
-// Unwrap L0000's internal Record representation ({_type:"record", _entries:Map})
-// to plain JS, stripping the tag:/str:/num: key prefixes. Identical to L0176.
+// Unwrap L0000's internal Record representation to plain JS (identical to L0176).
 function toPlainObject(val: any): any {
   if (val !== null && typeof val === "object" && val._type === "record" && val._entries instanceof Map) {
     const obj: any = {};
@@ -36,7 +31,10 @@ function toPlainObject(val: any): any {
   return val;
 }
 
-// The Learnosity widget types the Author API can enable (l0176 author.ts + docs).
+const isNonEmptyString = (v: any) => typeof v === "string" && v.trim() !== "";
+
+const MODES = ["item-edit", "item-list", "activity-edit", "activity-list"];
+const EDIT_MODES = new Set(["item-edit", "activity-edit"]);
 const WIDGET_TYPES = new Set([
   "mcq", "shorttext", "longtext", "plaintext", "clozetext", "clozeassociation",
   "clozedropdown", "clozeformula", "clozeinlinetext", "choicematrix", "classification",
@@ -44,128 +42,184 @@ const WIDGET_TYPES = new Set([
   "tokenhighlight", "numberline", "association", "fillintheblanks",
   "imageclozeassociation", "imageclozetext",
 ]);
+const PERMISSION_KEYS = new Set(["edit_widgets", "delete_widgets", "edit_tags", "show_tags"]);
+const CONTENT_KEYS = new Set(["dynamic_content", "shared_passage"]);
 
-// Boolean item-editor toggles (map into config.item_edit.item / .widget).
-const EDIT_TOGGLES = [
-  "edit_widgets", "delete_widgets", "edit_tags", "show_tags",
-  "dynamic_content", "shared_passage",
-];
+// Per-attribute value warnings accumulate on `options` (per-compile mutable state,
+// like l0176's SET_VAR side effects); the head reads them.
+const pushWarn = (options: any, w: string) => { (options.__warnings ||= []).push(w); };
 
-// Per-construct design spec: the target Author API mode, whether a `reference`
-// is a required design property, and whether item-editor config applies.
-interface Spec { mode: string; requiresReference: boolean; editConfig: boolean }
-const SPECS: Record<string, Spec> = {
-  AUTHOR_ITEM_EDIT: { mode: "item_edit", requiresReference: true, editConfig: true },
-  AUTHOR_ITEM_LIST: { mode: "item_list", requiresReference: false, editConfig: false },
-  AUTHOR_ACTIVITY_EDIT: { mode: "activity_edit", requiresReference: false, editConfig: true },
-  AUTHOR_ACTIVITY_LIST: { mode: "activity_list", requiresReference: false, editConfig: false },
+// Attribute registry: output field + a validator that normalizes the value and
+// emits per-function warnings. This is the "compiler checks each function" seam.
+interface Attr { field: string; validate: (v: any, options: any) => any }
+const ATTRIBUTES: Record<string, Attr> = {
+  MODE: {
+    field: "mode",
+    validate(v, options) {
+      const s = typeof v === "string" ? v.trim() : v;
+      if (!MODES.includes(s)) {
+        pushWarn(options, `mode "${s}" isn't a Learnosity Author API view — use one of: ${MODES.map((m) => `"${m}"`).join(", ")}.`);
+      }
+      return s;
+    },
+  },
+  DOMAIN: { field: "domain", validate: (v) => v },
+  USER: {
+    field: "user",
+    validate(v, options) {
+      const u = v && typeof v === "object" && !Array.isArray(v) ? v : null;
+      if (!u || !isNonEmptyString(u.id)) {
+        pushWarn(options, `user needs an \`id\` — the author's stable id (recorded in the item-bank audit trail).`);
+      }
+      return u ?? v;
+    },
+  },
+  REFERENCE: { field: "reference", validate: (v) => v },
+  ALLOW_WIDGETS: {
+    field: "allow_widgets",
+    validate(v, options) {
+      const list = Array.isArray(v) ? v : v == null ? [] : [v];
+      const bad = list.filter((w: any) => !WIDGET_TYPES.has(w));
+      if (bad.length) {
+        pushWarn(options, `these aren't Learnosity widget types: ${bad.join(", ")}. Use types like mcq, shorttext, clozetext, clozedropdown, choicematrix, orderlist, classification, formula, tokenhighlight.`);
+      }
+      return list;
+    },
+  },
+  ITEM_PERMISSIONS: {
+    field: "item_permissions",
+    validate(v, options) {
+      const rec = v && typeof v === "object" && !Array.isArray(v) ? v : {};
+      for (const [k, val] of Object.entries(rec)) {
+        if (!PERMISSION_KEYS.has(k)) pushWarn(options, `item-permissions: "${k}" isn't a known permission. Known: ${[...PERMISSION_KEYS].join(", ")}.`);
+        else if (typeof val !== "boolean") pushWarn(options, `item-permissions.${k} must be true or false.`);
+      }
+      return rec;
+    },
+  },
+  CONTENT: {
+    field: "content",
+    validate(v, options) {
+      const rec = v && typeof v === "object" && !Array.isArray(v) ? v : {};
+      for (const [k, val] of Object.entries(rec)) {
+        if (!CONTENT_KEYS.has(k)) pushWarn(options, `content: "${k}" isn't a known content option. Known: ${[...CONTENT_KEYS].join(", ")}.`);
+        else if (typeof val !== "boolean") pushWarn(options, `content.${k} must be true or false.`);
+      }
+      return rec;
+    },
+  },
+  ORGANISATION_ID: {
+    field: "organisation_id",
+    validate(v, options) {
+      if (v != null && typeof v !== "number") pushWarn(options, `organisation-id must be a number (the item bank id).`);
+      return v;
+    },
+  },
+  LOCKED: {
+    field: "locked",
+    validate(v, options) {
+      if (v != null && typeof v !== "boolean") pushWarn(options, `locked must be true or false.`);
+      return v;
+    },
+  },
 };
 
-const isNonEmptyString = (v: any) => typeof v === "string" && v.trim() !== "";
-const kebab = (s: string) => s.toLowerCase().replace(/_/g, "-");
-
-// Validate an authoring-integration design. Returns the normalized echo plus
-// warnings. Design holes (missing required properties) are dominant and suppress
-// specificity advisories (progressive disclosure): the client fills the holes
-// first, then the sharper advisories surface. Hard errors only for structurally
-// incoherent input the generator can fix from what it already has.
-function validateDesign(specName: string, rec: any): { data: any; errors: string[] } {
-  const spec = SPECS[specName];
-  const construct = kebab(specName);
-  const errors: string[] = [];
+// The head: assemble the record, then cross-field coherence + design holes.
+function finalizeDesign(rec: any, options: any): any {
+  rec = rec || {};
   const holes: string[] = [];
-  const advisories: string[] = [];
+  const coherence: string[] = [];
+  const specificity: string[] = [];
 
-  if (rec == null || typeof rec !== "object" || Array.isArray(rec)) {
-    return { data: null, errors: [`Error: ${construct} takes a record describing the integration design, e.g. { domain: "…", user: { id: "…" } }.`] };
+  const mode = rec.mode;
+  const isEdit = EDIT_MODES.has(mode);
+
+  // --- design holes (dominant, required properties) ---
+  if (!isNonEmptyString(mode)) {
+    holes.push(`Which authoring experience? \`mode\` is required — one of "item-edit", "item-list", "activity-edit", "activity-list".`);
   }
-
-  // --- design holes (dominant; required properties) ---
   if (!isNonEmptyString(rec.domain)) {
-    holes.push(`Your design doesn't specify the serving domain (required — the Author API signature binds to it, and a mismatch is the #1 cause of a 401). Provide the domain where your app serves the editor (e.g. "lms.acme.edu").`);
+    holes.push(`Your design doesn't specify the serving domain (required — the Author API signature binds to it; a mismatch is the #1 cause of a 401). Provide the domain where your app serves the editor.`);
   }
-  const user = rec.user;
-  if (user == null || typeof user !== "object" || Array.isArray(user) || !isNonEmptyString(user.id)) {
-    holes.push(`Your design doesn't identify the author (required — Author API records the author in the item-bank audit trail). Provide a stable user id (e.g. your LMS user id).`);
+  if (!rec.user || typeof rec.user !== "object" || !isNonEmptyString(rec.user.id)) {
+    holes.push(`Your design doesn't identify the author (required). Provide a user with a stable id.`);
   }
-  if (spec.requiresReference && !isNonEmptyString(rec.reference)) {
-    holes.push(`This is an item-editing experience but names no item — provide a reference (the existing item to edit, or a new reference to create).`);
-  }
-
-  // --- value checks (warn, don't hard-error: keep errors rare) ---
-  let widgets = rec.allow_widgets;
-  if (widgets != null && !Array.isArray(widgets)) widgets = [widgets];
-  if (Array.isArray(widgets)) {
-    const bad = widgets.filter((w: any) => !WIDGET_TYPES.has(w));
-    if (bad.length) {
-      advisories.push(`These aren't Learnosity widget types: ${bad.join(", ")}. Use types like mcq, shorttext, clozetext, clozedropdown, choicematrix, orderlist, classification, formula, tokenhighlight (or remove them).`);
-    }
+  if (mode === "item-edit" && !isNonEmptyString(rec.reference)) {
+    holes.push(`item-edit needs a reference — the existing item to edit, or a new reference to create.`);
   }
 
   // --- cross-field coherence ---
-  if (!spec.editConfig) {
-    const misplaced = [...EDIT_TOGGLES, "allow_widgets"].filter((k) => rec[k] !== undefined).map(kebab);
-    if (misplaced.length) {
-      advisories.push(`${misplaced.join(", ")} apply only to an editing experience, not the ${spec.mode} view — they'll be ignored here. Remove them, or switch to author-item-edit.`);
+  if (mode && !isEdit) {
+    const editOnly = ["allow_widgets", "item_permissions", "content"].filter((k) => rec[k] !== undefined);
+    if (editOnly.length) {
+      coherence.push(`${editOnly.map((k) => k.replace(/_/g, "-")).join(", ")} apply only to an editing experience, not the ${mode} view — they'll be ignored here.`);
     }
   }
 
-  // --- specificity advisories (surface after holes are cleared) ---
-  if (spec.editConfig) {
-    if (widgets == null) {
-      advisories.push(`Allowed widget types aren't restricted — the editor exposes all default types. Restrict them to the question types your authors should use for a tighter, safer editing experience.`);
-    }
-    if (EDIT_TOGGLES.every((k) => rec[k] === undefined)) {
-      advisories.push(`No editor permissions set (edit-widgets, delete-widgets, edit-tags, show-tags, dynamic-content, shared-passage) — defaults apply. Set them to match your author roles.`);
-    }
+  // --- specificity advisories (surface after holes clear) ---
+  if (isEdit) {
+    if (rec.allow_widgets === undefined) specificity.push(`Allowed widget types aren't restricted — the editor exposes all default types. Restrict them to the question types your authors should use.`);
+    if (rec.item_permissions === undefined) specificity.push(`No editor permissions set (edit-widgets, delete-widgets, edit-tags, show-tags) — defaults apply. Set them to match your author roles.`);
   }
-  if (rec.organisation_id === undefined) {
-    advisories.push(`No item bank specified (organisation-id) — the default is used. Set it if your authors work against a specific item bank.`);
-  }
+  if (rec.organisation_id === undefined) specificity.push(`No item bank specified (organisation-id) — the default is used.`);
 
-  // Progressive disclosure: holes first; advisories only once no holes remain.
-  const warnings = holes.length > 0 ? holes : advisories;
+  const attrWarnings: string[] = options.__warnings || [];
+  const warnings = holes.length > 0 ? holes : [...attrWarnings, ...coherence, ...specificity];
 
-  const data: any = {
-    mode: spec.mode,
+  return {
+    mode: isNonEmptyString(mode) ? mode : undefined,
     domain: isNonEmptyString(rec.domain) ? rec.domain : undefined,
-    user: user && typeof user === "object" && !Array.isArray(user) ? user : undefined,
+    user: rec.user,
     reference: isNonEmptyString(rec.reference) ? rec.reference : undefined,
-    allow_widgets: Array.isArray(widgets) ? widgets : undefined,
+    allow_widgets: rec.allow_widgets,
+    item_permissions: rec.item_permissions,
+    content: rec.content,
     organisation_id: rec.organisation_id,
+    locked: rec.locked,
     complete: holes.length === 0,
     warnings,
   };
-  return { data, errors };
 }
 
 class Checker extends BaseChecker {
   [key: string]: any;
+  AUTHOR_EMBED(node: any, options: any, resume: any) {
+    this.visit(node.elts[0], options, async (e0: any) => resume(([] as any[]).concat(e0 || []), node));
+  }
 }
-for (const name of Object.keys(SPECS)) {
+// Generate a Checker method per attribute (visit value + continuation).
+for (const name of Object.keys(ATTRIBUTES)) {
   Checker.prototype[name] = function (node: any, options: any, resume: any) {
-    this.visit(node.elts[0], options, async (e0: any, _v0: any) => {
-      resume(([] as any[]).concat(e0 || []), node);
+    this.visit(node.elts[0], options, async (e0: any) => {
+      this.visit(node.elts[1], options, async (e1: any) => {
+        resume(([] as any[]).concat(e0 || [], e1 || []), node);
+      });
     });
   };
 }
 
 class Transformer extends BaseTransformer {
   [key: string]: any;
-  PROG(node: any, options: any, resume: any) {
-    this.visit(node.elts[0], options, async (e0: any, v0: any) => {
-      resume(e0, v0.pop());
-    });
-  }
-}
-for (const name of Object.keys(SPECS)) {
-  Transformer.prototype[name] = function (node: any, options: any, resume: any) {
+  AUTHOR_EMBED(node: any, options: any, resume: any) {
     this.visit(node.elts[0], options, async (e0: any, v0: any) => {
       const rec = toPlainObject(v0);
-      const { data, errors } = validateDesign(name, rec);
-      const err = ([] as any[]).concat(e0 || [], errors);
-      if (err.length > 0) { resume(err, undefined); return; }
-      resume([], data);
+      resume(e0, finalizeDesign(rec, options));
+    });
+  }
+  PROG(node: any, options: any, resume: any) {
+    this.visit(node.elts[0], options, async (e0: any, v0: any) => resume(e0, v0.pop()));
+  }
+}
+// Generate a Transformer method per attribute: validate the value (per-function
+// feedback), merge { field: value } into the continuation record.
+for (const [name, attr] of Object.entries(ATTRIBUTES)) {
+  Transformer.prototype[name] = function (node: any, options: any, resume: any) {
+    this.visit(node.elts[0], options, async (e0: any, v0: any) => {
+      this.visit(node.elts[1], options, async (e1: any, v1: any) => {
+        const value = attr.validate(toPlainObject(v0), options);
+        const cont = toPlainObject(v1) || {};
+        resume(([] as any[]).concat(e0 || [], e1 || []), { ...cont, [attr.field]: value });
+      });
     });
   };
 }

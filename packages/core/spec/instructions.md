@@ -55,7 +55,7 @@ There is no in-UI view switching, so the view you use *is* the mode:
 
 **Sections** (arity-2, top level): `container` (`height`, `fixed-footer-height` numbers; `scroll-into-view-selector` string); `widget-templates` (`back`, `save`, `require-validation` booleans); `global` (`disable-onbeforeunload` boolean).
 
-**Widget-type tags**: `MCQ, SHORT-TEXT, LONG-TEXT, PLAIN-TEXT, CLOZE-TEXT, CLOZE-ASSOCIATION, CLOZE-DROPDOWN, CLOZE-FORMULA, CLOZE-INLINE-TEXT, CHOICE-MATRIX, CLASSIFICATION, ORDER-LIST, SORT-LIST, FORMULA, GRAPH-PLOTTING, HIGHLIGHT-TEXT, HOTSPOT, TOKEN-HIGHLIGHT, NUMBER-LINE, ASSOCIATION, FILL-IN-THE-BLANKS, IMAGE-CLOZE-ASSOCIATION, IMAGE-CLOZE-TEXT`.
+**Widget-type tags** (the DSL authoring values; each maps to Learnosity's lowercase type string — lowercase, hyphens removed): `MCQ, SHORT-TEXT, LONG-TEXT, PLAIN-TEXT, CLOZE-TEXT, CLOZE-ASSOCIATION, CLOZE-DROPDOWN, CLOZE-FORMULA, CLOZE-INLINE-TEXT, CHOICE-MATRIX, CLASSIFICATION, ORDER-LIST, SORT-LIST, FORMULA, GRAPH-PLOTTING, HIGHLIGHT-TEXT, HOTSPOT, TOKEN-HIGHLIGHT, NUMBER-LINE, ASSOCIATION, FILL-IN-THE-BLANKS, IMAGE-CLOZE-ASSOCIATION, IMAGE-CLOZE-TEXT`.
 
 Map the client's request to the right view and set the properties they gave. **Do not invent `domain`, `user-id`, or `reference`** — omit them and the compiler flags them as design holes for the client to supply.
 
@@ -69,7 +69,7 @@ The compiler returns `data.warnings` — imperative, specific steering hints. **
 - **Signing is SDK-handled:** use the official Learnosity **server-side SDK** for your language (.NET / Java / Node.js / PHP / Python / Ruby) to generate the `security` object from your consumer key + secret. Do not hand-roll signing unless unavoidable.
 - **`security`** = `{ consumer_key, domain, timestamp (UTC, `YYYYMMDD-HHMM`), signature }`. The consumer **secret** signs the request but is **never** sent to the browser. `domain` MUST equal the host actually serving the page — a mismatch is the **#1 cause of a 401**.
 - **`mode`** selects the view; there is no in-UI switch between the item/activity list/edit views — build a separate page/init per experience.
-- **Widget-type restriction** maps into `config.dependencies.question_editor_api`/`questions_api.init_options.widgetTypes` (kept consistent with `widget_templates`).
+- **Widget-type restriction** maps into `config.dependencies.question_editor_api`/`questions_api.init_options.widgetTypes` (kept consistent with `widget_templates`). The `widgetTypes` values are Learnosity's **lowercase** type strings: take each widget tag and **lowercase it, removing hyphens** — `MCQ`→`mcq`, `CLOZE-TEXT`→`clozetext`, `SHORT-TEXT`→`shorttext`, `TOKEN-HIGHLIGHT`→`tokenhighlight`, `FILL-IN-THE-BLANKS`→`fillintheblanks`. The recipe MUST use these lowercase Learnosity values, never the UPPERCASE DSL tags.
 - **Client-side wiring:** provide a `readyListener` (fires when initialized) and an `errorListener` (`e.code` / `e.message` / `e.name`); optionally `assetRequest` (your DAM) and `customButtons`.
 
 ### Gotchas

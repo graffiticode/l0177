@@ -16,7 +16,7 @@ Numbered steps. Be SURGICALLY PRECISE where correctness is binary — the `secur
 The specific mistakes that cause silent failures or 401s for THIS experience: domain mismatch, secret leaking to the browser, timestamp skew, missing `errorListener`, (for editing) an omitted `reference`.
 
 ## Verification steps
-A concrete, ordered, runnable acceptance checklist the developer runs against THEIR implementation — each a pass/fail check — so they know they're done. Include at least one negative check. At minimum:
+A concrete, ordered, runnable acceptance checklist the developer runs against THEIR implementation — each a pass/fail check — so they know they're done. **Output this as a NUMBERED Markdown list — one check per line (`1.`, `2.`, `3.`, …), each a single concrete pass/fail assertion. Do NOT collapse it into a paragraph or a single sentence.** Include at least one negative check. At minimum:
 1. `readyListener` fires with no error and the editor renders in the target element.
 2. A deliberately-tampered signature triggers `errorListener` (a 401-class error).
 3. The init payload delivered to the browser contains no consumer secret.

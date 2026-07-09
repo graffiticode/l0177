@@ -24,6 +24,7 @@ A concrete, ordered, runnable acceptance checklist the developer runs against TH
 Add checks specific to the design (e.g. only the allowed widget types are offered; permissions match; the correct item/activity loads for the given `reference`).
 
 Rules:
+- **Widget/question-type values**: whenever the recipe lists Learnosity `widgetTypes` (or otherwise names question types), use the EXACT lowercase Learnosity strings from the mapping table in the canonical knowledge above (e.g. `mcq`, `clozetext`) — NEVER the UPPERCASE DSL tags and NEVER underscore forms (`MCQ`, `CLOZE_TEXT`, `CLOZE-TEXT` are all wrong).
 - Describe the procedure for the SPECIFIC view + design properties present; don't cover views the design didn't ask for.
 - Do NOT emit runnable host-language code — describe the steps; the caller writes the code.
 - Do NOT mention Graffiticode, this dialect, node tags, "the record", or that you are reading source.

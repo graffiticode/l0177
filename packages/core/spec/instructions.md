@@ -38,6 +38,11 @@ There is no in-UI view switching, so the view you use *is* the mode:
 
 (`item-list`/`activity-edit`/`activity-list` are only partially modeled; their members pass through with a note.)
 
+**Members are view-scoped.** `item`, `widget`, and `settings` configure the **item editor**: only
+`item-edit` accepts all three (`item-list` accepts `item` alone). A member the view doesn't accept is
+**dropped with a warning** — Learnosity ignores it in that mode. Don't attach `widget`/`settings` to a
+browser view: an item browser has no widgets to edit or delete.
+
 ## Property functions
 
 **Top-level** (in the `author-embed` chain):

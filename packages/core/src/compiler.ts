@@ -71,8 +71,10 @@ function finalize(rec: any, options: any): any {
     specificity.push("No item bank specified (`organisation-id`) — the default is used.");
   }
 
+  // Holes lead (progressive disclosure), and specificity nudges wait until they're filled —
+  // but validity warnings always surface: they report input we rejected or dropped.
   const attrWarnings: string[] = options.__warnings || [];
-  const warnings = holes.length > 0 ? holes : [...attrWarnings, ...specificity];
+  const warnings = holes.length > 0 ? [...holes, ...attrWarnings] : [...attrWarnings, ...specificity];
   return {
     mode: isNonEmptyString(mode) ? mode : undefined,
     domain: rec.domain,
@@ -166,7 +168,12 @@ for (const [view, mode] of Object.entries(VIEWS)) {
         const config: any = {};
         for (const m of members) {
           if (m && typeof m === "object" && m.kind) {
-            if (allowedMembers.size && !allowedMembers.has(m.kind)) pushWarn(options, `${view}: "${m.kind}" isn't a valid member of this view.`);
+            // A member the view doesn't accept is dropped, not passed through: folding it in
+            // would emit config Learnosity ignores for this mode (e.g. widget in item_list).
+            if (allowedMembers.size && !allowedMembers.has(m.kind)) {
+              pushWarn(options, `${view}: "${m.kind}" isn't a member of this view — dropped. ${view} accepts: ${[...allowedMembers].join(", ")}.`);
+              continue;
+            }
             config[m.kind] = m.value;
           }
         }

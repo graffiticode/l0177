@@ -77,6 +77,24 @@ describe("design holes (progressive disclosure)", () => {
   });
 });
 
+describe("view-scoped members", () => {
+  test("a member the view rejects is dropped, not folded into config", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" item-list [ item back true {} widget edit true delete false {} ] {}..');
+    expect(out.mode).toBe("item_list");
+    expect(out.config.widget).toBeUndefined(); // item_list has no widgets to edit/delete
+    expect(out.config.item).toEqual({ back: true }); // an accepted member still lands
+    expect(hasWarning(out, `item-list: "widget" isn't a member of this view`)).toBe(true);
+  });
+
+  test("validity warnings surface even while design holes remain", async () => {
+    const out = await compile("author-embed item-list [ widget edit true {} ] {}..");
+    expect(out.complete).toBe(false);
+    expect(hasWarning(out, "domain")).toBe(true); // holes still lead
+    expect(hasWarning(out, "dropped")).toBe(true); // ...but the drop isn't silent
+    expect(hasWarning(out, "item bank")).toBe(false); // specificity still deferred
+  });
+});
+
 describe("per-property + cross-context validation", () => {
   test("a wrong-typed property warns", async () => {
     const out = await compile('author-embed domain "d" user-id "u" reference "r" item-edit [ item back "yes" {} ] {}..');

@@ -70,13 +70,40 @@ The compiler returns `data.warnings` — imperative, specific steering hints. **
 
 ## Canonical Learnosity Author API knowledge (the recipe draws on this)
 
-- **Init:** server-side, build a signed request and call `LearnosityAuthor.init(initObject, callbacks, "learnosity-author")`. `initObject = { security, request: { mode, reference?, config, user } }`.
-- **Signing is SDK-handled:** use the official Learnosity **server-side SDK** for your language (.NET / Java / Node.js / PHP / Python / Ruby) to generate the `security` object from your consumer key + secret. Do not hand-roll signing unless unavoidable.
-- **`security`** = `{ consumer_key, domain, timestamp (UTC, `YYYYMMDD-HHMM`), signature }`. The consumer **secret** signs the request but is **never** sent to the browser. `domain` MUST equal the host actually serving the page — a mismatch is the **#1 cause of a 401**.
-- **`mode`** selects the view; there is no in-UI switch between the item/activity list/edit views — build a separate page/init per experience.
-- **Widget-type restriction** maps into `config.dependencies.question_editor_api`/`questions_api.init_options.widgetTypes` (kept consistent with `widget_templates`). **CRITICAL — the `widgetTypes` values are Learnosity's EXACT lowercase strings. Copy them from this table; do NOT derive them, do NOT uppercase them, do NOT add underscores:**
+Facts below marked **[verified]** were confirmed against the live Author API (v1.144.0) using
+Learnosity's public demo consumer on `localhost`. Anything not marked verified must be presented
+to the client as *documented-but-unconfirmed*, never asserted as fact.
 
-  | DSL tag | Learnosity `widgetTypes` value |
+- **Script tag [verified]:** load the Author API from the **bare host** — `<script src="https://authorapi.learnosity.com"></script>`. It defines the global `LearnosityAuthor`. Do **not** invent a versioned file path: `https://authorapi.learnosity.com/latest/authorapi.js` **404s**, `LearnosityAuthor` is then undefined, `init()` never runs, and *neither callback fires* — a silently blank page.
+- **Init [verified]:** server-side, build a signed request and call `LearnosityAuthor.init(initObject, callbacks, "learnosity-author")`. `initObject = { security, request: { mode, reference?, config, user } }`.
+- **Signing is SDK-handled [verified]:** use the official Learnosity **server-side SDK** for your language (.NET / Java / Node.js / PHP / Python / Ruby) to generate the `security` object from your consumer key + secret. Do not hand-roll signing unless unavoidable.
+- **`security` [verified]** = `{ consumer_key, domain, timestamp (UTC, `YYYYMMDD-HHMM`), signature }`. The consumer **secret** signs the request but is **never** sent to the browser. `domain` MUST equal the host actually serving the page — a mismatch (or any tampered signature) yields Learnosity error **41003 "Signatures do not match"**. This is the **#1 cause of a failed init**.
+- **`mode`** selects the view; there is no in-UI switch between the item/activity list/edit views — build a separate page/init per experience.
+
+- **⚠ The Author API FAILS OPEN on config [verified].** An unrecognized `config` key is **silently ignored**: the editor still initializes, `readyListener` still fires, and the page looks correct — while enforcing nothing. A wrong config path therefore produces an authoring experience that *appears* restricted but is not. Never tell a client a restriction is in force unless they have observed it in the running editor.
+
+- **⚠ Widget-type restriction: MECHANISM UNVERIFIED — do not assert a config path.**
+  The previously-documented path here (`config.dependencies.question_editor_api.init_options.widgetTypes`)
+  was tested against the live Author API and **does not restrict anything** — the editor loaded with all
+  ten question-type groups (Math, Graphing, Chemistry, …) still on offer — identical to a control init with
+  no restriction at all. These were also tested and did **not** restrict the picker:
+  `config.widget_templates.widget_types` (silently ignored — not even type-checked) and
+  `config.dependencies.question_editor_api.init_options.question_type_groups` (the *only* key the API
+  type-checks — a non-array errors with *"question_type_groups must be an array"* — yet no valid shape tried
+  had any effect on the picker).
+  So: when `allow-widgets` is set, the recipe MUST state that the restriction is a **design intent whose
+  Learnosity config binding is not yet confirmed**, direct the client to the Author API initialization
+  reference, and make it a **verification step** ("open the widget picker and confirm only the intended
+  types are offered") rather than a claim. Do not fabricate a path to fill the gap — given fail-open
+  semantics, a wrong path is worse than an acknowledged unknown.
+
+- **Widget-type name strings [verified against the published schema]:** the question `type` values below are
+  Learnosity's exact lowercase strings (confirmed in `schemas.learnosity.com` → `question_type_templates`,
+  which is keyed by exactly these). They are correct as *question type* identifiers; that is independent of
+  the unresolved question of *which config key* accepts a restriction list. Copy them exactly — do NOT
+  derive them, do NOT uppercase them, do NOT add underscores:
+
+  | DSL tag | Learnosity question `type` value |
   |---|---|
   | `MCQ` | `mcq` |
   | `SHORT-TEXT` | `shorttext` |
@@ -102,11 +129,14 @@ The compiler returns `data.warnings` — imperative, specific steering hints. **
   | `IMAGE-CLOZE-ASSOCIATION` | `imageclozeassociation` |
   | `IMAGE-CLOZE-TEXT` | `imageclozetext` |
 
-  Example: the design `allow-widgets [MCQ CLOZE-TEXT]` becomes `widgetTypes: ["mcq", "clozetext"]` — **RIGHT**. Writing `["MCQ", "CLOZE_TEXT"]` or `["MCQ", "CLOZE-TEXT"]` is **WRONG**.
-- **Client-side wiring:** provide a `readyListener` (fires when initialized) and an `errorListener` (`e.code` / `e.message` / `e.name`); optionally `assetRequest` (your DAM) and `customButtons`.
+  Example: the design `allow-widgets [MCQ CLOZE-TEXT]` refers to the question types `mcq` and `clozetext` — **RIGHT**. Writing `MCQ`, `CLOZE_TEXT`, or `CLOZE-TEXT` as the Learnosity value is **WRONG**. (Which config key carries this list is the unresolved question above — name the types, don't invent the binding.)
+- **Widget edit/delete permissions:** Learnosity's reference documents these at `config.item_edit.widget.edit` and `config.item_edit.widget.delete` (this also matches L0177's own `widget` member, which maps to `config.item_edit.widget`). **Not functionally verified** — the API type-checks neither, and it fails open, so treat it as documented-but-unconfirmed and make it a verification step. Do **not** use `config.widget_templates.edit`/`.delete`; that path is supported by nothing.
+- **Client-side wiring [verified]:** provide a `readyListener` (fires when initialized) and an `errorListener` (`e.code` / `e.message` / `e.name`); optionally `assetRequest` (your DAM) and `customButtons`.
 
 ### Gotchas
-- `domain` mismatch → 401.
+- **wrong config key → silently ignored, restricts nothing** (fail-open). The editor loads and looks right. Only a live check of the running editor proves a restriction is in force.
+- **invented script URL → blank page, no error.** `.../latest/authorapi.js` 404s; use the bare host `https://authorapi.learnosity.com`. Neither listener fires, so there is nothing in the console to lead you to the cause.
+- `domain` mismatch or tampered signature → error **41003 "Signatures do not match"**.
 - consumer secret exposed to the browser → security hole (server-only).
 - stale/skewed timestamp → failure (use UTC, fresh per request).
 - no `errorListener` → init failures are silent.

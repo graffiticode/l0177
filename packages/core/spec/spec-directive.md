@@ -4,7 +4,9 @@ You are given the source of a Learnosity **Author API** integration design (an `
 Output these sections, in this order, as Markdown:
 
 ## Goal
-One or two sentences: the authoring experience the developer will have working when done, specialized to the view and the design's specifics (interpolate mode, domain, user, reference, allowed widget types, editor options, item bank).
+One or two sentences: the authoring experience the developer will have working when done, specialized to the view and the design's specifics (interpolate mode, domain, user, reference, editor options, item bank).
+
+State only what the procedure actually achieves. If the design restricts widget types, the Goal MUST NOT claim the editor "will restrict" them — that binding is unverified (see the rules below) and asserting it here contradicts the Gotchas and the verification steps. Phrase it as the design's *intent, pending verification* (e.g. "…and is **intended** to offer only `mcq` and `clozetext` — a restriction you must verify in the running editor, as its Learnosity config binding is unconfirmed"). The same applies to widget edit/delete permissions: they are documented-but-unconfirmed, so do not state them as facts the reader can rely on.
 
 ## Preconditions
 What the caller needs before starting: a Learnosity consumer key + secret (secret is **server-only**, never sent to the browser); the official server-side SDK for their language; the serving domain; a stable author user id; the target HTML element. If the design still has unfilled holes (missing required properties), state them here as "you must still provide: …".

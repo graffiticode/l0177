@@ -5,132 +5,225 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Development
-- **Start dev server**: `npm run dev` (starts API server on port 50177; expects Firestore emulator at 127.0.0.1:8080 and local auth at 127.0.0.1:4100)
-- **Build project**: `npm run build` (builds `core` → `api` → `view`, then assembles static bundle into `packages/api/static/`)
+- **Start dev server**: `npm run dev` (API server on port 50177; expects Firestore emulator at 127.0.0.1:8080 and local auth at 127.0.0.1:4100)
+- **Build project**: `npm run build` (`core` → `core:build-static` → `api` → `view` → `view:embed` → `assemble`)
 - **Start production**: `npm run start` (runs the built API server)
+
+### Testing
+- **Run tests**: `npm test` (vitest, `packages/core` only — `src/compiler.test.ts` and `src/spec-directive.test.ts`)
 
 ### Linting
 - **Lint repo**: `npm run lint` (ESLint over the whole monorepo)
 - **Lint a package**: `npm -w packages/<core|api|view> run lint`
-- **Fix lint errors**: `npm run lint:fix` (or `:fix` on a workspace script)
-- **Format**: `npm run format` (Prettier across the repo)
+- **Fix lint errors**: `npm run lint:fix`
+- **Format**: `npm run format` (Prettier across the repo — note this formats `spec/*.md` too)
 
 ### Package Management
 - **Build and pack**: `npm run pack` (builds, then packs `packages/view`)
 - **Publish**: `npm run publish` (publishes `@graffiticode/l0177` and `@graffiticode/l0177-view` with public access)
 
-### Testing
-Vitest is installed at the root but no test runner script is wired up yet, and no `*.spec.*` files exist in the packages.
-
 ### Deployment
 - **GCP Cloud Build**: `npm run gcp:build` (submits `cloudbuild.yaml` to the `graffiticode` project)
-- **GCP Direct Deploy**: `npm run gcp:deploy` (deploys to Cloud Run as `l0177`, region `us-central1`, port `50177`)
+- **GCP Direct Deploy**: `npm run gcp:deploy` (Cloud Run as `l0177`, region `us-central1`, port `50177`)
 - **View logs**: `npm run gcp:logs`
 
 ## Architecture
 
-L0177 is a Graffiticode dialect (child of `@graffiticode/l0000`) for building **Learnosity
-assessment integrations**. It compiles Graffiticode programs into Learnosity API requests
-(Items, Questions, Author APIs) and renders them via a React frontend that loads the
-Learnosity browser SDK. It is the modern-architecture successor to **L0158** (which was
-built on the old `@graffiticode/basis` compiler); the vocabulary and compiled output are a
-faithful, byte-compatible port of L0158. It's an npm-workspaces monorepo with three packages.
+L0177 is a Graffiticode dialect (child of `@graffiticode/l0000`) that acts as a **Learnosity
+Author API integration oracle**. A client describes an *integration design* — which authoring
+experience to embed in their app (item editor, item browser, activity editor, activity list)
+and how it's configured. L0177 validates the design, reports missing required properties as
+steering warnings, and — via `get_spec` — returns a **host-language-neutral developer recipe**
+(goal, preconditions, procedure, gotchas, verification steps).
+
+**What L0177 is not:** it does not author item content (that's L0176), does not sign or send
+Learnosity API requests, and does not emit runnable host-language code. The compiled `data` is
+a normalized design plus `warnings`; it is *not* the deliverable. The deliverable is the recipe.
+
+> Historical note: L0177 began as a port of **L0158** (which compiled programs into signed
+> Learnosity Items/Questions/Author requests). That architecture was replaced by the oracle.
+> If you find references to `question-types.ts`, `items.ts`, `resolveCredentials`,
+> `save-to-itembank`, or `set-var "lrn-id"`, they are from the old design and no longer exist.
 
 ### Structure
 
-- **`packages/core/`** — `@graffiticode/l0177`: the language itself. Pure TypeScript.
-  - `src/lexicon.ts`: merges L0000's base lexicon with L0177's Learnosity vocabulary
-    (`init`, `learnosity`, `items`, `item`, `questions`, `author`; the question-type keywords
-    `mcq`/`shorttext`/`clozetext`/`choicematrix`/`bowtie`/`hot-text`/… ; attribute keywords
-    `stimulus`/`options`/`valid-response`/`save-to-itembank`/`metadata`/… ; and metadata
-    member constructors `tags`/`notes`/`difficulty-level`/…)
-  - `src/compiler.ts`: `Checker`/`Transformer` extending L0000's; hand-written block handlers
-    (`INIT`, `LEARNOSITY`, `ITEMS`, `QUESTIONS`, `AUTHOR`, `SAVE_TO_ITEMBANK`, `ID`, `PROG`)
-    plus registry-driven generation of per-question-type / per-attribute / per-metadata
-    methods. `resolveCredentials` reads Learnosity creds from `options.config` (api-injected)
-    or program `set-var`.
-  - `src/question-types.ts`: the per-type Learnosity question builders + attribute/metadata
-    registries (`questionTypeBuilders`, `attributeFields`, `metadataMembers`, `validAttributes`)
-  - `src/{items,questions,author,dataapi}.ts`: Learnosity signing (`learnosity-sdk-nodejs`)
-    and item-bank Data API calls (`POST /itembank/items`, `POST /itembank/questions`)
-  - `spec/`: language documentation, examples, schema, RAG training prompts, etc.
-  - `tools/build-static.js`: copies spec content into `dist/static/` for the API to serve
+- **`packages/core/`** — `@graffiticode/l0177`: the language. Pure TypeScript, ~320 lines.
+  - `src/vocab.ts`: **the single source of truth.** Every keyword, arity, property type,
+    member/section field list, view→mode mapping, and widget tag lives here. `lexicon.ts` and
+    `compiler.ts` are both generated from it — to add a property or view, edit this file first.
+  - `src/lexicon.ts`: merges L0000's base lexicon with entries derived from `vocab.ts`.
+  - `src/compiler.ts`: `Checker`/`Transformer` extending L0000's. Only `PROG` and `AUTHOR_EMBED`
+    are hand-written; every property, member, section, and view method is generated by looping
+    over the `vocab.ts` registries. `finalize()` produces the output record and the warnings.
+  - `src/index.ts`: re-exports the compiler, lexicon, and L0000's inheritance contract.
+  - `spec/`: the prompt and metadata assets (see **The spec/ directory is the product** below).
+  - `tools/build-static.js`: emits `dist/static/` — merged `lexicon.json`, `spec.html` (via
+    `spec-md`), `instructions.md` (parent L0000's concatenated with L0177's), plus verbatim
+    copies of `usage-guide.md`, `scope.json`, `schema.json`, `template.gc`, `spec-directive.md`,
+    and a `language-info.json` whose `authoring_guide` is injected from the usage guide's
+    `## Overview` section (the build fails if that section is missing or under 100 chars).
 
-### Learnosity credentials
+- **`packages/api/`** — `@graffiticode/api-l0177`: Express language server. TypeScript, `tsx` in
+  dev, compiled to `dist/` for prod. Port 50177 (or `PORT`).
+  - `src/app.ts`: HTTPS redirect in production, CORS, `Cross-Origin-Resource-Policy:
+    cross-origin` (so the `/form` bundle loads inside COEP-isolated hosts like claude.ai
+    widget iframes), a back-compat `/lexicon.js` → `lexicon.json` alias, then public static
+    assets mounted **before** auth (so the spec assets need no token).
+  - Routes: `GET /` (health check), `POST /compile`, `GET /form` (serves the embed bundle).
+  - `src/compile.ts`: wraps `compiler.compile` into a `{ data, errors }` envelope.
+  - Auth via `@graffiticode/auth` — attaches `req.auth`, does not reject anonymous requests.
 
-The Learnosity consumer key/secret are secrets and live in the **api process**: `packages/api/
-src/compile.ts` reads `LEARNOSITY_KEY`/`LEARNOSITY_SECRET` from env and merges them into
-`config.learnosity`, which the core compiler reads as `options.config.learnosity`. The
-non-secret `domain` is derived in core from `NODE_ENV`. A program may override the creds with
-`set-var "learnosity-key"/"learnosity-secret"` — supplying both is the gate that permits
-item-bank writes (`save-to-itembank true`). A sentinel `lrn-id` of `verify-itemid` is a dry
-run (validate structure, skip credential gates and item-bank writes).
+- **`packages/view/`** — `@graffiticode/l0177-view`: React view component. Vite + TypeScript +
+  Tailwind, built on `@graffiticode/l0000-view`.
+  - `src/components/form/Form.tsx`: the language-specific Form.
+  - `embed/`: standalone HTML entry built by `vite.embed.config.ts` into `dist-embed/`.
 
-- **`packages/api/`** — `@graffiticode/api-l0177`: Express language server. TypeScript, run via `tsx` in dev and compiled to `dist/` for prod.
-  - Routes (`src/routes/`): `compile`, `auth`, `root` (`/form`), plus `index` and shared `utils`
-  - Auth integration with `@graffiticode/auth`
-  - Port: 50177 (dev) or `process.env.PORT`
+### The language
 
-- **`packages/view/`** — `@graffiticode/l0177-view`: React view component. Vite + TypeScript + Tailwind.
-  - `src/components/form/Form.tsx`: language-specific form rendering
-  - `src/components/form/ThemeToggle.tsx`: dark/light toggle wired up by the `theme` function
-  - `embed/`: standalone HTML entry built by `vite.embed.config.ts` for embedding in the API's static bundle
-  - Built on top of `@graffiticode/l0000-view`
-
-### Build pipeline
-
-`npm run build` composes the packages in order:
-1. `core` compiles TypeScript and copies spec content to `core/dist/static/`
-2. `api` compiles TypeScript to `api/dist/`
-3. `view` builds both the library (`dist/`) and the embed bundle (`dist-embed/`)
-4. `assemble` clears `packages/api/static/` and copies `core/dist/static/` + `view/dist-embed/` into it — this is what the API serves
-
-### Language Functions
-
-L0177 inherits the full L0000 base vocabulary (arithmetic, lists, lambdas, `map`/`filter`/
-`reduce`, pattern matching, tags, `set-var`/`get-val-public`/`get-val-private`) and adds the
-Learnosity vocabulary. Canonical program shape:
+A program is one `author-embed` head carrying a chain of property functions and exactly one
+**view** function, terminated with `{}` then `..`:
 
 ```
-set-var "lrn-id" get-val-public "itemId"
-learnosity items [item questions [mcq {}] {}] {}..
+author-embed
+  domain "lms.example.edu"
+  user-id "u123"
+  reference "algebra-item-1"
+  organisation-id 100
+  allow-widgets [MCQ CLOZE-TEXT]
+  item-edit [
+    item back true scoring true reference-prefix "LEAR_" {}
+    widget edit true delete false {}
+  ]
+  {}..
 ```
 
-- **Question types (arity 1):** `mcq`, `shorttext`, `longtext`, `plaintext`, `clozetext`,
-  `clozeassociation`, `clozedropdown`, `clozeformula`, `choicematrix`, `orderlist`,
-  `classification`, `bowtie`, `custom`, `hot-text` (= `token-highlight`).
-- **Attributes (arity 2):** `stimulus`, `options`, `valid-response`, `possible-responses`,
-  `rows`, `columns`, `list`, `categories`, `column-titles`, `passage`, `distractors`,
-  `method`, `metadata`, `id`, `save-to-itembank`, and more.
-- **Metadata members (arity 1):** `tags`, `notes`, `distractor-rationale`, `acknowledgements`,
-  `description`, `source`, `difficulty-level`.
-- **Control-flow attributes** set `options` by side effect rather than emitting a field:
-  `id` sets `options["lrn-id"]` (required by ITEMS/QUESTIONS/AUTHOR); `save-to-itembank` sets
-  `options["save-to-itembank"]`.
+The grammar is deliberately uniform (this is what makes the compiler registry-driven):
 
-Checker/Transformer methods for question types, attributes, and metadata members are generated
-programmatically by looping over the registries in `question-types.ts`; only the block-level
-nodes have hand-written methods.
+| Construct | Arity | Shape |
+| :-------- | :---: | :---- |
+| `author-embed` | 1 | Head; takes the whole property + view chain. |
+| Views: `item-edit` `item-list` `activity-edit` `activity-list` | 2 | Take a `[list]` of members; select the Learnosity `mode`. |
+| Members: `item` `widget` `settings` | 1 | Take a property chain; fold into the view's `config` by kind. |
+| Sections: `container` `widget-templates` `global` | 2 | Take a property sub-chain; merge as a named record. |
+| Properties (every one) | 2 | `name value`, chained; the chain ends with `{}`. |
+| Widget-type enum values | — | UPPERCASE-kebab `TAG` tokens (`MCQ`, `CLOZE-TEXT`). |
+
+Conventions that hold everywhere:
+- Function keywords are **lowercase-kebab**; enum values are **UPPERCASE-kebab** tags, so the
+  two can never collide.
+- Learnosity's nested config is flattened to kebab names
+  (`config.item_edit.item.reference.show` → `reference-show`).
+- **Everything is optional** — smart defaults. `item {}` is a fully-defaulted item.
+- An unknown property is a **parse error**, not a warning (every valid property is a function).
+  Warnings are reserved for values and combinations the compiler accepted but wants to steer.
+
+### Warnings and progressive disclosure
+
+`finalize()` in `compiler.ts` orders warnings deliberately, and the ordering is tested:
+
+1. **Holes** — missing required properties (no view, no `domain`, no `user-id`, no `reference`
+   on `item-edit`). These lead when present.
+2. **Validity warnings** — input that was rejected or dropped (a bad value type, an unknown
+   widget tag, a member the view doesn't accept). These *always* surface, at any stage.
+3. **Specificity advisories** — nudges like "restrict `allow-widgets`" or "no item bank
+   specified". These wait until the holes are filled, so an early design isn't buried in
+   advice it can't act on yet.
+
+`complete` is `true` exactly when there are no holes.
+
+Members are **view-scoped**: a member the view doesn't accept is **dropped with a warning**
+rather than passed through, because folding it in would emit config Learnosity ignores for
+that mode. Only `item-edit` is in `VIEW_MODELED`; the other three views emit an "isn't fully
+modeled yet" warning and validate loosely.
+
+### The spec/ directory is the product
+
+For an oracle dialect, the prompts *are* the deliverable — more so than the compiler. Treat
+these files as load-bearing:
+
+- **`spec/spec-directive.md`** — drives `get_spec`. Instructs the generator to emit the recipe
+  (Goal / Preconditions / Procedure / Gotchas / Verification steps) and pins the rules the live
+  API taught us.
+- **`spec/instructions.md`** — the canonical Learnosity knowledge the recipe draws on, appended
+  to L0000's instructions at build time. Facts are marked **[verified]** or must be presented
+  as documented-but-unconfirmed.
+- **`spec/usage-guide.md`** — agent-facing guide; its `## Overview` becomes `language_info`'s
+  `authoring_guide`.
+- **`spec/language-info.json`**, **`scope.json`**, **`schema.json`**, **`examples.md`**,
+  **`template.gc`** — discovery, scope boundaries, output schema, and examples.
+
+**`src/spec-directive.test.ts` guards the prompts.** Every rule it asserts was installed after
+the live Author API contradicted the recipe (commits `c09225c`..`08be3cc`). Read its header
+comment before editing a prompt. Note what it explicitly does *not* do: it pins the prompt text,
+not the generated output — a passing run says the rules are still written down, not that the
+generator obeyed them. Match on whitespace-normalized substrings, never exact lines (Prettier
+reformats `spec/*.md`).
+
+### Learnosity findings that constrain the docs
+
+These were confirmed against the live Author API (v1.144.0) and are why several prompt rules
+exist. Do not soften them without new evidence:
+
+- **The Author API fails open on `config`.** An unrecognized key is silently ignored — the
+  editor still initializes, `readyListener` still fires, and the page looks correct while
+  enforcing nothing. A wrong config path is therefore *worse* than an acknowledged unknown.
+- **Widget-type restriction has no confirmed config binding.** The previously-documented
+  `config.dependencies.question_editor_api.init_options.widgetTypes` was tested and restricts
+  nothing; `config.widget_templates.widget_types` and `...init_options.question_type_groups`
+  were also tried without effect. The recipe must name the intended types, state the binding is
+  unconfirmed, and carry the restriction as a verification step — never emit a guessed path.
+- **Because of fail-open, any check on config-driven behaviour must be differential** — a
+  control run with the key omitted — *including* enabling keys, not just restricting ones.
+  "Confirm editing works" passes whether or not `edit: true` took effect.
+- **Load the Author API from the bare host** `https://authorapi.learnosity.com`. A versioned
+  path like `/latest/authorapi.js` 404s; `LearnosityAuthor` is undefined, `init()` never runs,
+  and *neither* callback fires — a blank page with nothing in the console.
+- **`domain` must equal the serving host.** A mismatch or tampered signature yields Learnosity
+  error 41003 "Signatures do not match" — the #1 cause of a failed init.
+- Widget `edit`/`delete` permissions are documented at `config.item_edit.widget.edit`/`.delete`
+  but are **not** functionally verified. Never use `config.widget_templates.edit`/`.delete`.
 
 ### Data Flow
 
 ```
-User Input → State Update → POST /compile → Compiler (core, signs via Learnosity SDK)
-  → { type, data, request } → Form (view, loads Learnosity SDK by type) → postMessage to parent
+Client design (natural language) → generator writes L0177 source → POST /compile
+  → Compiler (core) → { data: { mode, domain, user, …, complete, warnings }, errors }
+  → client fills holes via update_item until warnings clear
+  → get_spec → spec-directive.md + instructions.md → the developer recipe
 ```
 
-The embedded form supports iframe embedding; the shared View (from `@graffiticode/l0000-view`)
-owns the parent-window postMessage/onload protocol.
+### Build pipeline
+
+`npm run build` composes the packages in order:
+1. `core` compiles TypeScript
+2. `core` runs `build-static` → `core/dist/static/`
+3. `api` compiles TypeScript → `api/dist/`
+4. `view` builds the library (`dist/`) then the embed bundle (`dist-embed/`)
+5. `assemble` clears `packages/api/static/` and copies `core/dist/static/` +
+   `view/dist-embed/` into it — this is what the API serves
 
 ### Environment Variables
 - `PORT`: API port (default 50177)
-- `LEARNOSITY_KEY` / `LEARNOSITY_SECRET`: Learnosity consumer credentials (read by the api)
 - `AUTH_URL`: Auth service URL (default `https://auth.graffiticode.org`; dev uses `http://127.0.0.1:4100`)
 - `FIRESTORE_EMULATOR_HOST`: Local Firestore emulator (dev: `127.0.0.1:8080`)
-- `NODE_ENV`: `development` or `production` (selects the Learnosity signing `domain`)
+- `NODE_ENV`: `development` or `production` (production forces HTTPS and switches request logging)
 
 ### Dependencies
 - `@graffiticode/l0000` (published) — base language, inherited by `core`
 - `@graffiticode/l0000-view` (published) — base view, inherited by `view`
 - `@graffiticode/auth` — auth service client used by `api`
-- `learnosity-sdk-nodejs` — Learnosity request signing (in `core`)
+- `@graffiticode/parser`, `spec-md` — dev-only in `core` (tests; spec HTML generation)
+
+## Known stale code
+
+Two vestiges of the pre-oracle architecture are still in the tree. Don't build on them, and
+don't infer behaviour from them:
+
+- **`packages/api/src/compile.ts` injects `LEARNOSITY_KEY`/`LEARNOSITY_SECRET`** into
+  `config.learnosity` and refers to a `resolveCredentials` in the core compiler. That function
+  no longer exists and the core never reads `options.config` — the oracle signs nothing. The
+  injection is dead, as are those two environment variables.
+- **`packages/view/src/components/form/Form.tsx`** switches on `state.data.type` ∈
+  `questions|author|items` and mounts a signed `request` into the Learnosity browser SDK. The
+  compiler emits no `type` and no `request`, so every program falls through to the raw
+  `<pre>{JSON}</pre>` branch. The Form does not render the design or its warnings.

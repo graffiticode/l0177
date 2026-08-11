@@ -429,6 +429,26 @@ describe("record lists (item banks)", () => {
   });
 });
 
+describe("view-level chains must be terminated", () => {
+  // `limit 20 filter-restricted …` parses as limit taking the member as its
+  // continuation, so limit ends up on the member wrapper where nothing reads it.
+  // It used to vanish without a word — the exact silent loss this dialect exists to
+  // prevent, and easy to write by accident.
+  test("a chain running into a member warns instead of vanishing", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" organisation-id 1 activity-list [ limit 20 filter-restricted current-user true {} ] {}..');
+    expect(out.config.limit).toBeUndefined();
+    expect(hasWarning(out, 'ran into the "filter-restricted" member')).toBe(true);
+    expect(hasWarning(out, "terminate the property chain with {}")).toBe(true);
+  });
+
+  test("terminating the chain keeps both, with no warning", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" organisation-id 1 activity-list [ limit 20 {} filter-restricted current-user true {} ] {}..');
+    expect(out.config.limit).toBe(20);
+    expect(out.config["filter-restricted"]).toEqual({ "current-user": true });
+    expect(out.warnings).toEqual([]);
+  });
+});
+
 describe("no keyword shadows the inherited L0000 vocabulary", () => {
   // `filter.restricted` and `toolbar.add` are named `filter-restricted` and
   // `toolbar-add` precisely so that base `filter` and `add` survive. Assert the

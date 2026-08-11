@@ -25,7 +25,7 @@ Uniform rules:
 - **Every property is a lowercase-kebab arity-2 function** — `name value` — that chains; a chain ends with `{}`.
 - **Members** (`item`, `widget`, `settings`, `filter-restricted`, `toolbar`) are arity-1: they take a property chain (`item back true … {}`).
 - **Views** and **sections** are arity-2. A **view** takes a `[list]` of members.
-- **A bare property chain inside a view's list sets that view's own options** — `limit 25 {}` is not a member, it sets `config.item_list.limit`. Members configure a node *inside* the view; a bare chain configures the view itself.
+- **A bare property chain inside a view's list sets that view's own options** — `limit 25 {}` is not a member, it sets `config.item_list.limit`. Members configure a node *inside* the view; a bare chain configures the view itself. **Terminate it with `{}` before the next member**: `[limit 25 filter-restricted … ]` makes `limit` swallow the member as its continuation, and the compiler warns that `limit` would be dropped. Write `[limit 25 {} filter-restricted … {}]`.
 - **Widget-type values are UPPERCASE-kebab tags** (`MCQ`, `CLOZE-TEXT`), never quoted strings.
 - **Content tags are records**, written the way Learnosity receives them:
   `[{type: "Grade", name: "4"} {type: "Subject", name: ["Math" "Science"]} {type: "Course"}]`.

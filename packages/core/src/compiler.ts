@@ -293,6 +293,14 @@ for (const [view, spec] of Object.entries(VIEWS)) {
         for (const el of elements) {
           if (!el || typeof el !== "object") continue;
           if (el.kind) {
+            // A view-level property chain left unterminated swallows the member that
+            // follows it as its continuation, and the properties end up riding on the
+            // member wrapper where nothing reads them. `[limit 20 filter-restricted …]`
+            // silently loses `limit`; `[limit 20 {} filter-restricted …]` is the fix.
+            const stray = Object.keys(el).filter((k) => k !== "kind" && k !== "value");
+            if (stray.length > 0) {
+              pushWarn(options, `${view}: ${stray.map((k) => `"${k}"`).join(", ")} ran into the "${el.kind}" member and would be dropped — terminate the property chain with {} before the next member.`);
+            }
             const member = spec.members[el.kind];
             if (!member) {
               // A member the view doesn't accept is dropped, not passed through: folding it in

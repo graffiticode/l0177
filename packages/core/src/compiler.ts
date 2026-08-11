@@ -3,12 +3,21 @@
 // L0177 — Learnosity Author API integration oracle.
 //
 // Uniform surface (derived from vocab.ts): every PROPERTY is an arity-2 kebab
-// function that type-checks its value and merges it; members (item/widget/settings)
-// are arity-1 (a property chain); views select the Learnosity mode and fold their
-// [members]; sections (container/widget-templates/global) are arity-2 property
-// sub-chains; widget-type enum values are UPPERCASE TAG tokens. Everything is
-// optional (smart defaults). Each function validates its own argument (per-function
-// feedback) and pushes non-fatal steering warnings; `author-embed` finalizes with
+// function; members (item/widget/toolbar/…) are arity-1 (a property chain); views
+// select the Learnosity mode and fold their [members]; sections (container/
+// widget-templates/global) are arity-2 property sub-chains; widget-type enum values
+// are UPPERCASE TAG tokens. Everything is optional (smart defaults).
+//
+// Property and member functions are deliberately DUMB — they collect, they do not
+// validate. A property's legality and type depend on where it appears (`status` is
+// a boolean under item_list.item but an array of strings under
+// item_list.filter.restricted), and a property function cannot see its context.
+// All validation therefore happens at the fold — the view, the section, or
+// finalize — where (view, member) is known. Getting this backwards is what let
+// item-edit's fields into item-list and emitted config paths Learnosity ignores.
+//
+// Each accepted field also records its exact Learnosity path in `paths`, so the
+// recipe never has to infer one from a kebab name. `author-embed` finalizes with
 // design holes first (progressive disclosure). The recipe is produced by get_spec.
 import {
   Checker as BaseChecker,
@@ -16,8 +25,8 @@ import {
   Compiler,
 } from "@graffiticode/l0000";
 import {
-  ARITY1, VIEWS, VIEW_MEMBERS, VIEW_MODELED, SECTION_FIELDS, PROPS,
-  MEMBER_FIELDS, TOPLEVEL_FIELDS, WIDGET_TAGS, TOK,
+  ARITY1, VIEWS, SECTIONS, TOPLEVEL, PROPERTIES, WIDGET_TAGS, TOK,
+  type Fields,
 } from "./vocab.js";
 
 function toPlainObject(val: any): any {
@@ -31,8 +40,9 @@ function toPlainObject(val: any): any {
 }
 const isNonEmptyString = (v: any) => typeof v === "string" && v.trim() !== "";
 const pushWarn = (options: any, w: string) => { (options.__warnings ||= []).push(w); };
+const recordPath = (options: any, from: string, to: string) => { (options.__paths ||= {})[from] = to; };
 
-// --- property value validation ---
+// --- property value validation (called from the fold, which knows the type) ---
 function validateProp(name: string, type: string, value: any, options: any): any {
   if (type === "widgets") {
     const list = Array.isArray(value) ? value : value == null ? [] : [value];
@@ -44,30 +54,65 @@ function validateProp(name: string, type: string, value: any, options: any): any
     }
     return mapped;
   }
+  if (type === "strings") {
+    const list = Array.isArray(value) ? value : value == null ? [] : [value];
+    if (!list.every((s) => typeof s === "string")) pushWarn(options, `${name} must be a list of strings.`);
+    return list;
+  }
   if (type === "boolean" && typeof value !== "boolean") pushWarn(options, `${name} must be true or false.`);
   else if (type === "number" && typeof value !== "number") pushWarn(options, `${name} must be a number.`);
   else if (type === "string" && typeof value !== "string") pushWarn(options, `${name} must be a string.`);
   return value;
 }
 
-// --- author-embed finalize: top-level coherence + design holes (progressive disclosure) ---
-const TOP_ALLOWED = new Set<string>([...TOPLEVEL_FIELDS, "mode", "config", ...Object.keys(SECTION_FIELDS)]);
+// Validate a collected property chain against the field set legal in THIS context.
+// A field that doesn't belong is warned and DROPPED — keeping it would emit a
+// config path Learnosity silently ignores (the API fails open), which is precisely
+// the failure this dialect exists to prevent.
+function validateFields(
+  rec: any, fields: Fields, label: string, options: any, outBase: string, lrnBase: string,
+): any {
+  const out: any = {};
+  for (const [k, v] of Object.entries(rec)) {
+    const spec = fields[k];
+    if (!spec) {
+      const accepts = Object.keys(fields);
+      pushWarn(options, `${label}: "${k}" isn't a valid ${label} property here. ` +
+        (accepts.length ? `Accepts: ${accepts.join(", ")}.` : "It accepts no properties."));
+      continue;
+    }
+    const [path, type] = spec;
+    out[k] = validateProp(k, type, v, options);
+    recordPath(options, `${outBase}.${k}`, `${lrnBase}.${path}`);
+  }
+  return out;
+}
+
+// --- author-embed finalize: top-level coherence + design holes ---
+const TOP_ALLOWED = new Set<string>([
+  ...Object.keys(TOPLEVEL), "mode", "config", "paths", ...Object.keys(SECTIONS),
+]);
 function finalize(rec: any, options: any): any {
   const holes: string[] = [];
   const specificity: string[] = [];
-  for (const k of Object.keys(rec)) {
-    if (!TOP_ALLOWED.has(k)) pushWarn(options, `"${k}" isn't a top-level author-embed property.`);
+  const top: any = {};
+  for (const [k, v] of Object.entries(rec)) {
+    if (!TOP_ALLOWED.has(k)) { pushWarn(options, `"${k}" isn't a top-level author-embed property.`); continue; }
+    // Top-level property types are checked here, for the same reason member fields
+    // are checked at the view fold: this is the first point that knows the context.
+    top[k] = TOPLEVEL[k] ? validateProp(k, TOPLEVEL[k][1], v, options) : v;
   }
-  const mode = rec.mode;
-  if (!isNonEmptyString(mode)) holes.push("Which authoring view? Use exactly one of: item-edit, item-list, activity-edit, activity-list.");
-  if (!isNonEmptyString(rec.domain)) holes.push("Your design doesn't specify the serving `domain` (required — the Author API signature binds to it, and a mismatch is the #1 cause of a 401). Provide the domain where your app serves the editor.");
-  if (!isNonEmptyString(rec["user-id"])) holes.push("Your design doesn't identify the author (required). Provide `user-id` — the author's stable id.");
-  if (mode === "item_edit" && !isNonEmptyString(rec.reference)) holes.push("item-edit needs a `reference` — the existing item to edit, or a new reference to create.");
 
-  if (rec["allow-widgets"] === undefined && (mode === "item_edit" || mode === "activity_edit")) {
+  const mode = top.mode;
+  if (!isNonEmptyString(mode)) holes.push("Which authoring view? Use exactly one of: item-edit, item-list, activity-edit, activity-list.");
+  if (!isNonEmptyString(top.domain)) holes.push("Your design doesn't specify the serving `domain` (required — the Author API signature binds to it, and a mismatch is the #1 cause of a 401). Provide the domain where your app serves the editor.");
+  if (!isNonEmptyString(top["user-id"])) holes.push("Your design doesn't identify the author (required). Provide `user-id` — the author's stable id.");
+  if (mode === "item_edit" && !isNonEmptyString(top.reference)) holes.push("item-edit needs a `reference` — the existing item to edit, or a new reference to create.");
+
+  if (top["allow-widgets"] === undefined && (mode === "item_edit" || mode === "activity_edit")) {
     specificity.push("`allow-widgets` not restricted — the editor exposes all default widget types. Restrict it to the types your authors should use.");
   }
-  if (rec["organisation-id"] === undefined) {
+  if (top["organisation-id"] === undefined) {
     specificity.push("No item bank specified (`organisation-id`) — the default is used.");
   }
 
@@ -77,15 +122,18 @@ function finalize(rec: any, options: any): any {
   const warnings = holes.length > 0 ? [...holes, ...attrWarnings] : [...attrWarnings, ...specificity];
   return {
     mode: isNonEmptyString(mode) ? mode : undefined,
-    domain: rec.domain,
-    user: { id: rec["user-id"], email: rec["user-email"], firstname: rec["user-firstname"], lastname: rec["user-lastname"] },
-    reference: rec.reference,
-    organisation_id: rec["organisation-id"],
-    allow_widgets: rec["allow-widgets"],
-    config: rec.config,
-    container: rec.container,
-    widget_templates: rec["widget-templates"],
-    global: rec.global,
+    domain: top.domain,
+    user: { id: top["user-id"], email: top["user-email"], firstname: top["user-firstname"], lastname: top["user-lastname"] },
+    reference: top.reference,
+    organisation_id: top["organisation-id"],
+    allow_widgets: top["allow-widgets"],
+    config: top.config,
+    container: top.container,
+    widget_templates: top["widget-templates"],
+    global: top.global,
+    // Every config key this design sets, mapped to its exact Learnosity path, so the
+    // recipe names paths rather than inferring them from kebab names.
+    paths: options.__paths || {},
     complete: holes.length === 0,
     warnings,
   };
@@ -94,7 +142,7 @@ function finalize(rec: any, options: any): any {
 // --- Checker: arity-aware, generated for every function token ---
 const ARITIES: Record<string, number> = {};
 for (const k of ARITY1) ARITIES[TOK(k)] = 1;
-for (const k of [...Object.keys(VIEWS), ...Object.keys(SECTION_FIELDS), ...Object.keys(PROPS)]) ARITIES[TOK(k)] = 2;
+for (const k of [...Object.keys(VIEWS), ...Object.keys(SECTIONS), ...PROPERTIES]) ARITIES[TOK(k)] = 2;
 
 class Checker extends BaseChecker { [key: string]: any; }
 for (const [tok, arity] of Object.entries(ARITIES)) {
@@ -119,67 +167,79 @@ class Transformer extends BaseTransformer {
     this.visit(node.elts[0], options, async (e0: any, v0: any) => resume(e0, finalize(toPlainObject(v0) || {}, options)));
   }
 }
-// property functions (arity 2): type-check value, merge { name: value }
-for (const [name, type] of Object.entries(PROPS)) {
+
+// property functions (arity 2): merge { name: value }. No validation — the fold does
+// it, because only the fold knows which context this property landed in.
+for (const name of PROPERTIES) {
   Transformer.prototype[TOK(name)] = function (node: any, options: any, resume: any) {
     this.visit(node.elts[0], options, async (e0: any, v0: any) => {
       this.visit(node.elts[1], options, async (e1: any, v1: any) => {
-        const value = validateProp(name, type, toPlainObject(v0), options);
         const cont = toPlainObject(v1) || {};
-        resume(([] as any[]).concat(e0 || [], e1 || []), { ...cont, [name]: value });
+        resume(([] as any[]).concat(e0 || [], e1 || []), { ...cont, [name]: toPlainObject(v0) });
       });
     });
   };
 }
-// members (arity 1): validate belonging, return { kind, value }
-for (const [member, fields] of Object.entries(MEMBER_FIELDS)) {
-  const allowed = new Set(fields);
+
+// members (arity 1): collect only. The view validates, since the same member name
+// (`item`) denotes different Learnosity nodes with different fields per view.
+for (const member of [...new Set(Object.values(VIEWS).flatMap((v) => Object.keys(v.members)))]) {
   Transformer.prototype[TOK(member)] = function (node: any, options: any, resume: any) {
     this.visit(node.elts[0], options, async (e0: any, v0: any) => {
-      const rec = toPlainObject(v0) || {};
-      for (const k of Object.keys(rec)) if (!allowed.has(k)) pushWarn(options, `${member}: "${k}" isn't a valid ${member} property.`);
-      resume(([] as any[]).concat(e0 || []), { kind: member, value: rec });
+      resume(([] as any[]).concat(e0 || []), { kind: member, value: toPlainObject(v0) || {} });
     });
   };
 }
-// sections (arity 2): validate belonging, merge { section: record }
-for (const [section, fields] of Object.entries(SECTION_FIELDS)) {
-  const allowed = new Set(fields);
+
+// sections (arity 2): the section IS the context, so it validates here.
+for (const [section, spec] of Object.entries(SECTIONS)) {
   Transformer.prototype[TOK(section)] = function (node: any, options: any, resume: any) {
     this.visit(node.elts[0], options, async (e0: any, v0: any) => {
       this.visit(node.elts[1], options, async (e1: any, v1: any) => {
-        const rec = toPlainObject(v0) || {};
-        for (const k of Object.keys(rec)) if (!allowed.has(k)) pushWarn(options, `${section}: "${k}" isn't a valid ${section} option.`);
+        const rec = validateFields(
+          toPlainObject(v0) || {}, spec.fields, section, options,
+          section, `config.${spec.path}`,
+        );
         const cont = toPlainObject(v1) || {};
         resume(([] as any[]).concat(e0 || [], e1 || []), { ...cont, [section]: rec });
       });
     });
   };
 }
-// views (arity 2): fold [members] into config, select mode
-for (const [view, mode] of Object.entries(VIEWS)) {
-  const allowedMembers = new Set(VIEW_MEMBERS[view] || []);
-  const modeled = VIEW_MODELED.has(view);
+
+// views (arity 2): fold [members] into config, select mode, validate in context.
+for (const [view, spec] of Object.entries(VIEWS)) {
   Transformer.prototype[TOK(view)] = function (node: any, options: any, resume: any) {
     this.visit(node.elts[0], options, async (e0: any, v0: any) => {
       this.visit(node.elts[1], options, async (e1: any, v1: any) => {
-        let members = toPlainObject(v0);
-        if (!Array.isArray(members)) members = members == null ? [] : [members];
+        let elements = toPlainObject(v0);
+        if (!Array.isArray(elements)) elements = elements == null ? [] : [elements];
         const config: any = {};
-        for (const m of members) {
-          if (m && typeof m === "object" && m.kind) {
-            // A member the view doesn't accept is dropped, not passed through: folding it in
-            // would emit config Learnosity ignores for this mode (e.g. widget in item_list).
-            if (allowedMembers.size && !allowedMembers.has(m.kind)) {
-              pushWarn(options, `${view}: "${m.kind}" isn't a member of this view — dropped. ${view} accepts: ${[...allowedMembers].join(", ")}.`);
+        for (const el of elements) {
+          if (!el || typeof el !== "object") continue;
+          if (el.kind) {
+            const member = spec.members[el.kind];
+            if (spec.modeled && !member) {
+              // A member the view doesn't accept is dropped, not passed through: folding it in
+              // would emit config Learnosity ignores for this mode (e.g. widget in item_list).
+              pushWarn(options, `${view}: "${el.kind}" isn't a member of this view — dropped. ${view} accepts: ${Object.keys(spec.members).join(", ")}.`);
               continue;
             }
-            config[m.kind] = m.value;
+            config[el.kind] = member
+              ? validateFields(el.value, member.fields, el.kind, options,
+                `config.${el.kind}`, `config.${spec.mode}.${member.path}`)
+              : el.value;
+          } else {
+            // A bare property chain (not a member) sets the view's own scalars,
+            // e.g. `limit 25 {}` -> config.item_list.limit.
+            Object.assign(config, spec.modeled
+              ? validateFields(el, spec.view, view, options, "config", `config.${spec.mode}`)
+              : el);
           }
         }
-        if (!modeled) pushWarn(options, `the ${mode} view isn't fully modeled yet — its members pass through with limited validation.`);
+        if (!spec.modeled) pushWarn(options, `the ${spec.mode} view isn't fully modeled yet — its members pass through with limited validation.`);
         const cont = toPlainObject(v1) || {};
-        resume(([] as any[]).concat(e0 || [], e1 || []), { ...cont, mode, config });
+        resume(([] as any[]).concat(e0 || [], e1 || []), { ...cont, mode: spec.mode, config });
       });
     });
   };

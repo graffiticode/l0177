@@ -23,9 +23,9 @@ The view function you use *is* the mode (there's no in-UI switch — each is a s
 | View | Author API view | Notes |
 |------|-----------------|-------|
 | `item-edit` | Item editor (create/edit one item) | needs a `reference` |
-| `item-list` | Item browser/list | partially modeled |
-| `activity-edit` | Activity editor | `reference` optional; partially modeled |
-| `activity-list` | Activity browser/list | partially modeled |
+| `item-list` | Item browser/list | modeled: list columns and link-out URL, result restrictions, toolbar/search controls, page size |
+| `activity-edit` | Activity editor | `reference` optional; not yet modeled |
+| `activity-list` | Activity browser/list | not yet modeled |
 
 ## Writing a good design
 

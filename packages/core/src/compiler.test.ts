@@ -79,11 +79,23 @@ describe("design holes (progressive disclosure)", () => {
 
 describe("view-scoped members", () => {
   test("a member the view rejects is dropped, not folded into config", async () => {
-    const out = await compile('author-embed domain "d" user-id "u" item-list [ item back true {} widget edit true delete false {} ] {}..');
+    const out = await compile('author-embed domain "d" user-id "u" item-list [ item status true {} widget edit true delete false {} ] {}..');
     expect(out.mode).toBe("item_list");
     expect(out.config.widget).toBeUndefined(); // item_list has no widgets to edit/delete
-    expect(out.config.item).toEqual({ back: true }); // an accepted member still lands
+    expect(out.config.item).toEqual({ status: true }); // an accepted member still lands
     expect(hasWarning(out, `item-list: "widget" isn't a member of this view`)).toBe(true);
+  });
+
+  // The regression test for the mis-scoping bug. `config.item_edit.item` and
+  // `config.item_list.item` are different Learnosity nodes sharing one field name
+  // (`status`); item-edit's fields used to be accepted here and emitted as
+  // config.item_list.item.*, which the Author API silently ignores (it fails open).
+  test("item-edit's item fields are not accepted by item-list", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" item-list [ item back true scoring true {} ] {}..');
+    expect(out.config.item).toEqual({}); // dropped, not emitted under item_list
+    expect(out.paths["config.item.back"]).toBeUndefined();
+    expect(hasWarning(out, `item: "back" isn't a valid item property`)).toBe(true);
+    expect(hasWarning(out, `item: "scoring" isn't a valid item property`)).toBe(true);
   });
 
   test("validity warnings surface even while design holes remain", async () => {
@@ -108,5 +120,95 @@ describe("per-property + cross-context validation", () => {
 
   test("an unknown property is a parse error", async () => {
     await expect(compile('author-embed item-edit [ item wibble true {} ] {}..')).rejects.toBeTruthy();
+  });
+});
+
+describe("item-list vocabulary", () => {
+  const LIST = `author-embed
+    domain "lms.acme.edu" user-id "u123" organisation-id 7
+    item-list [
+      item url "https://app.acme.edu/items/:reference/edit"
+           enable-selection true
+           title-show true
+           title-show-reference false {}
+      filter-restricted current-user true
+                        status ["published" "unpublished"]
+                        created-by ["u123" "u456"] {}
+      toolbar toolbar-add true search-show true search-controls ["reference" "title"] {}
+      limit 25 {}
+    ]
+    {}..`;
+
+  test("the real item_list options compile with no warnings", async () => {
+    const out = await compile(LIST);
+    expect(out.mode).toBe("item_list");
+    expect(out.warnings).toEqual([]);
+    expect(out.config.item).toMatchObject({ "url": "https://app.acme.edu/items/:reference/edit", "enable-selection": true });
+    expect(out.config["filter-restricted"]).toMatchObject({ "current-user": true, "status": ["published", "unpublished"] });
+    expect(out.config.toolbar).toMatchObject({ "toolbar-add": true, "search-show": true });
+  });
+
+  test("a bare property chain sets view-level scalars", async () => {
+    const out = await compile(LIST);
+    expect(out.config.limit).toBe(25);
+    expect(out.paths["config.limit"]).toBe("config.item_list.limit");
+  });
+
+  test("an unknown view-level property warns rather than landing", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" organisation-id 1 item-list [ limit 25 {} scoring true {} ] {}..');
+    expect(out.config.scoring).toBeUndefined();
+    expect(hasWarning(out, `item-list: "scoring" isn't a valid item-list property`)).toBe(true);
+  });
+
+  // `status` is a boolean under config.item_list.item but array[string] under
+  // config.item_list.filter.restricted. A flat name->type map cannot express that,
+  // which is why type checking moved to the fold along with membership checking.
+  test("the same property name carries a different type per context", async () => {
+    const ok = await compile('author-embed domain "d" user-id "u" organisation-id 1 item-list [ item status true {} filter-restricted status ["published"] {} ] {}..');
+    expect(ok.warnings).toEqual([]);
+    expect(ok.config.item.status).toBe(true);
+    expect(ok.config["filter-restricted"].status).toEqual(["published"]);
+
+    const swapped = await compile('author-embed domain "d" user-id "u" organisation-id 1 item-list [ item status ["published"] {} filter-restricted status true {} ] {}..');
+    expect(hasWarning(swapped, "status must be true or false")).toBe(true);
+    expect(hasWarning(swapped, "status must be a list of strings")).toBe(true);
+  });
+});
+
+describe("no keyword shadows the inherited L0000 vocabulary", () => {
+  // `filter.restricted` and `toolbar.add` are named `filter-restricted` and
+  // `toolbar-add` precisely so that base `filter` and `add` survive. Assert the
+  // collision was AVOIDED, not merely renamed around.
+  test("base filter and add still resolve to L0000's functions", () => {
+    expect(lexicon.filter).toMatchObject({ name: "FILTER", type: "<lambda list: list>" });
+    expect(lexicon.add).toMatchObject({ name: "ADD", type: "<number number: number>" });
+    expect(lexicon["filter-restricted"]).toMatchObject({ name: "FILTER_RESTRICTED", arity: 1 });
+    expect(lexicon["toolbar-add"]).toMatchObject({ name: "TOOLBAR_ADD", arity: 2 });
+  });
+
+  test("base filter is still usable as a list function", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" reference "r" organisation-id 1 allow-widgets [MCQ] item-edit [] {}..');
+    expect(out.mode).toBe("item_edit");
+    expect(out.warnings).toEqual([]);
+  });
+});
+
+describe("exact Learnosity paths accompany the design", () => {
+  test("every set config key maps to its documented path", async () => {
+    const out = await compile(`author-embed domain "d" user-id "u" reference "r" organisation-id 1
+      item-edit [ item reference-prefix "LEAR_" tags-show true {} widget delete false {} ]
+      container height 600 {}
+      {}..`);
+    expect(out.paths).toMatchObject({
+      "config.item.reference-prefix": "config.item_edit.item.reference.prefix",
+      "config.item.tags-show": "config.item_edit.item.tags.show",
+      "config.widget.delete": "config.item_edit.widget.delete",
+      "container.height": "config.container.height",
+    });
+  });
+
+  test("a dropped field contributes no path", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" organisation-id 1 item-list [ item back true {} ] {}..');
+    expect(Object.keys(out.paths)).not.toContain("config.item.back");
   });
 });

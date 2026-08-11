@@ -24,7 +24,12 @@
     "reference": { "description": "The item/activity being edited (editing views).", "type": "string" },
     "organisation_id": { "description": "Which item bank to load from.", "type": "number" },
     "allow_widgets": { "description": "Allowed Learnosity widget types (mapped from UPPERCASE tags).", "type": "array", "items": { "type": "string" } },
-    "config": { "description": "The view's members, folded by kind (e.g. { item, widget, settings }).", "type": "object" },
+    "config": { "description": "The view's members, folded by kind (e.g. { item, widget, settings }), plus any view-level scalars. A member's legal fields depend on the view: config.item_edit.item and config.item_list.item are different Learnosity nodes. Fields that don't belong are dropped, not passed through.", "type": "object" },
+    "paths": {
+      "description": "Every config key this design set, mapped to its exact Learnosity path (e.g. \"config.item.reference-prefix\" -> \"config.item_edit.item.reference.prefix\"). The recipe must read paths from here rather than deriving them from kebab key names, which are ambiguous about nesting. A key absent here was dropped and must not appear in the recipe.",
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
     "container": { "description": "Author API container options.", "type": "object" },
     "widget_templates": { "description": "Widget editor options.", "type": "object" },
     "global": { "description": "Global Author API options.", "type": "object" },

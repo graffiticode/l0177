@@ -23,8 +23,9 @@ author-embed
 
 Uniform rules:
 - **Every property is a lowercase-kebab arity-2 function** — `name value` — that chains; a chain ends with `{}`.
-- **Members** (`item`, `widget`, `settings`) are arity-1: they take a property chain (`item back true … {}`).
+- **Members** (`item`, `widget`, `settings`, `filter-restricted`, `toolbar`) are arity-1: they take a property chain (`item back true … {}`).
 - **Views** and **sections** are arity-2. A **view** takes a `[list]` of members.
+- **A bare property chain inside a view's list sets that view's own options** — `limit 25 {}` is not a member, it sets `config.item_list.limit`. Members configure a node *inside* the view; a bare chain configures the view itself.
 - **Widget-type values are UPPERCASE-kebab tags** (`MCQ`, `CLOZE-TEXT`), never quoted strings.
 - **Smart defaults**: everything is optional; `item {}` is a fully-defaulted item. Write only what you change.
 
@@ -36,12 +37,36 @@ There is no in-UI view switching, so the view you use *is* the mode:
 - `activity-edit [ … ]` — the **Activity editor**. `reference` optional.
 - `activity-list [ … ]` — the **Activity browser/list**.
 
-(`item-list`/`activity-edit`/`activity-list` are only partially modeled; their members pass through with a note.)
+(`activity-edit`/`activity-list` are not yet modeled; their members pass through with a note.)
 
-**Members are view-scoped.** `item`, `widget`, and `settings` configure the **item editor**: only
-`item-edit` accepts all three (`item-list` accepts `item` alone). A member the view doesn't accept is
+**Members are view-scoped, and so are their properties.** A member the view doesn't accept is
 **dropped with a warning** — Learnosity ignores it in that mode. Don't attach `widget`/`settings` to a
 browser view: an item browser has no widgets to edit or delete.
+
+The subtler rule: `item` names a **different Learnosity node in each view**, with a different field
+set. `config.item_edit.item` and `config.item_list.item` share exactly one field name (`status`), and
+that field is a boolean in one place and a list of strings in another. So a property is legal only in
+the (view, member) context where Learnosity actually defines it:
+
+| View | Member | Properties |
+| :--- | :----- | :--------- |
+| `item-edit` | `item` | `answers` `back` `columns` `dynamic-content` `dynamic-image-tag` `enable-audio-recording` `scoring` `shared-passage` `status` `tabs` · `reference-show` `reference-edit` · `reference-prefix`(str) · `tags-show` `tags-edit` |
+| `item-edit` | `widget` | `edit` `delete` |
+| `item-edit` | `settings` | `show` `full-height` |
+| `item-list` | `item` | `url`(str, must contain `:reference`) · `enable-selection` · `status` · `title-show` `title-show-reference` |
+| `item-list` | `filter-restricted` | `current-user`(bool) · `created-by`(list of str) · `status`(list of `"published"`/`"unpublished"`/`"archived"`) · `allow-filtered-tags-overwrite`(bool) |
+| `item-list` | `toolbar` | `toolbar-add` `search-show` `search-status` `search-tags-show` `search-widget-type` (bool) · `search-controls`(list of str) |
+| `item-list` | *(view-level)* | `limit`(num, 1–50) |
+
+Writing an item-edit property into an item-list `item` — `item-list [ item back true {} ]` — is
+**dropped with a warning**, not passed through. Emitting `config.item_list.item.back` would produce a
+key Learnosity silently ignores, which under fail-open semantics is worse than an error.
+
+**Two keywords mirror more of their Learnosity path than the others**, because the bare leaf name
+would shadow an inherited L0000 function: `filter-restricted` (for `config.item_list.filter.restricted`,
+since a bare `filter` would replace L0000's list `filter`) and `toolbar-add` (for
+`config.item_list.toolbar.add`, since `add` is L0000's arithmetic function). Nothing is invented — the
+name is simply less elided. Note this means `toolbar-add` appears inside the `toolbar` member.
 
 ## Property functions
 
@@ -52,11 +77,8 @@ browser view: an item browser has no widgets to edit or delete.
 - **`organisation-id`** (number) — which item bank to load from.
 - **`allow-widgets`** (list of widget-type **tags**) — restrict the question types authors can add.
 
-**`item` member** (all optional booleans unless noted): `answers`, `back`, `columns`, `dynamic-content`, `dynamic-image-tag`, `enable-audio-recording`, `scoring`, `shared-passage`, `status`, `tabs`; `reference-show`, `reference-edit`; `reference-prefix` (string); `tags-show`, `tags-edit`.
-
-**`widget` member**: `edit`, `delete` (booleans).
-
-**`settings` member**: `show`, `full-height` (booleans).
+**Members**: see the view-scoped table above — a member's legal properties depend on the view it
+appears in, and so does the type of a shared name like `status`.
 
 **Sections** (arity-2, top level): `container` (`height`, `fixed-footer-height` numbers; `scroll-into-view-selector` string); `widget-templates` (`back`, `save`, `require-validation` booleans); `global` (`disable-onbeforeunload` boolean).
 
@@ -67,6 +89,16 @@ Map the client's request to the right view and set the properties they gave. **D
 ## Warnings are repair signals
 
 The compiler returns `data.warnings` — imperative, specific steering hints. **Design holes (missing required properties) come first**; once filled, specificity advisories (restrict widget types, pick an item bank) surface. The client reads them and refines the design (via `update_item`) until it's complete. (A truly-unknown property is a parse error, not a warning — every valid property is a function.)
+
+## `data.paths` gives the exact config paths — use them verbatim
+
+The compiler also returns `data.paths`: a map from every config key the design set to its **exact
+Learnosity path**, e.g. `"config.item.reference-prefix"` → `"config.item_edit.item.reference.prefix"`.
+A design's kebab names are deliberately ambiguous about nesting (`title-show` is `title.show`, but
+`enable-selection` is `enable_selection`), so **never derive a path from a key name — read it from
+`data.paths`**. A key absent from `paths` was dropped and must not appear in the recipe at all. This
+is the channel by which the recipe names config paths without guessing, which matters precisely
+because the API fails open: a wrong path looks identical to a right one in a running editor.
 
 ## Canonical Learnosity Author API knowledge (the recipe draws on this)
 

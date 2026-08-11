@@ -24,13 +24,17 @@ export const TOK = (kw: string) => kw.toUpperCase().replace(/-/g, "_");
 
 // Value types a field may declare.
 //   boolean | number | string | strings (array of strings) | widgets (widget-type
-//   tag list) | tags (Learnosity TagsV2: records of {type, name?})
-// An optional third element enumerates the accepted values. Learnosity type-checks
-// almost nothing and ignores what it doesn't recognise, so an out-of-range enum
-// value is exactly the kind of mistake that leaves an editor looking configured
+//   tag list) | tags (Learnosity TagsV2: records of {type, name?}) | records (a list
+//   of records validated against a schema) | unmodeled (documented, deliberately not
+//   modeled — reported as such rather than as a typo)
+//
+// The optional third element is a per-type CONSTRAINT: the accepted values for
+// `string`/`strings`, or the element schema for `records`. Learnosity type-checks
+// almost nothing and ignores what it doesn't recognise, so an out-of-range value or a
+// misspelt key is exactly the kind of mistake that leaves an editor looking configured
 // while doing nothing — worth catching here rather than in a running editor.
-export type Field = [string, string] | [string, string, string[]];
 export type Fields = Record<string, Field>;
+export type Field = [string, string] | [string, string, string[] | Fields];
 export type Member = { path: string; fields: Fields };
 export type View = {
   mode: string;
@@ -195,9 +199,9 @@ export const VIEWS: Record<string, View> = {
   //
   // Two options are left out for different reasons, and the difference matters:
   //
-  //   item_search.item_banks (array[ItemBankDefinition]) is DEFERRED. It is squarely in
-  //   scope — three scalars plus a `filter` shaped like item_search.filter — and needs a
-  //   field type whose elements validate against a declared schema, which nothing needs yet.
+  //   item_search.item_banks is modeled, minus its nested `filter` (shaped like
+  //   item_search.filter, two levels deeper than a record schema reaches). That key
+  //   reports itself as deferred rather than as a typo.
   //
   //   player_templates (array[PlayerTemplateObject]) is OUT OF SCOPE, not deferred. Past
   //   `name` and `reference` it is Assess API configuration (labelBundle, regions,
@@ -264,6 +268,16 @@ export const VIEWS: Record<string, View> = {
       "item-search": { path: "item_search", fields: {
         "back": ["back", "boolean"],
         "filter-restricted-created-by": ["filter.restricted.created_by", "strings"],
+        // Multiple item-bank sources. Record keys mirror Learnosity's payload verbatim,
+        // as tag records do. `filter` is documented (same shape as item_search.filter)
+        // but not modeled — it nests two levels deeper than a record schema reaches, so
+        // it reports itself as deferred rather than as an unknown key.
+        "item-banks": ["item_banks", "records", {
+          "organisation_id": ["organisation_id", "number"],
+          "item_bank_name": ["item_bank_name", "string"],
+          "item_pool_id": ["item_pool_id", "string"],
+          "filter": ["filter", "unmodeled"],
+        }],
         "filter-restricted-tags-all": ["filter.restricted.tags.all", "tags"],
         "filter-restricted-tags-either": ["filter.restricted.tags.either", "tags"],
         "filter-restricted-tags-none": ["filter.restricted.tags.none", "tags"],

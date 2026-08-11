@@ -43,10 +43,46 @@ const pushWarn = (options: any, w: string) => { (options.__warnings ||= []).push
 const recordPath = (options: any, from: string, to: string) => { (options.__paths ||= {})[from] = to; };
 
 // --- property value validation (called from the fold, which knows the type) ---
-function validateProp(name: string, type: string, value: any, options: any, values?: string[]): any {
+function validateProp(
+  name: string, type: string, value: any, options: any,
+  constraint?: string[] | Fields,
+): any {
+  const values = Array.isArray(constraint) ? constraint : undefined;
   const inRange = (v: any) => !values || values.includes(v);
   const rangeWarn = (v: any) =>
     pushWarn(options, `${name}: ${JSON.stringify(v)} isn't one of ${values!.map((s) => `"${s}"`).join(", ")}.`);
+
+  if (type === "records") {
+    // A list of records checked against a declared schema (today: item banks). Each key
+    // is validated by the same machinery as a property, so nested enums and types come
+    // for free. Keys mirror Learnosity's payload verbatim, as tag records do.
+    const schema = (constraint || {}) as Fields;
+    const list = Array.isArray(value) ? value : value == null ? [] : [value];
+    const out: any[] = [];
+    for (const rec of list) {
+      if (!rec || typeof rec !== "object" || Array.isArray(rec)) {
+        pushWarn(options, `${name}: each entry must be a record, e.g. {${Object.keys(schema)[0]}: …}.`);
+        continue;
+      }
+      const clean: any = {};
+      for (const [k, v] of Object.entries(rec)) {
+        const f = schema[k];
+        if (!f) {
+          pushWarn(options, `${name}: "${k}" isn't part of this record. Accepts: ${Object.keys(schema).join(", ")}.`);
+          continue;
+        }
+        if (f[1] === "unmodeled") {
+          // Documented by Learnosity but out of this schema's reach — say so, rather
+          // than let it read as a typo or, worse, pass through unchecked.
+          pushWarn(options, `${name}: "${k}" is a documented Learnosity option that L0177 doesn't model yet — it has been left out of the design rather than guessed at.`);
+          continue;
+        }
+        clean[k] = validateProp(k, f[1], v, options, f[2]);
+      }
+      out.push(clean);
+    }
+    return out;
+  }
   if (type === "widgets") {
     const list = Array.isArray(value) ? value : value == null ? [] : [value];
     const mapped: string[] = [];

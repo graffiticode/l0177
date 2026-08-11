@@ -386,6 +386,49 @@ describe("tag lists", () => {
   });
 });
 
+describe("record lists (item banks)", () => {
+  const bank = (inner: string) =>
+    `author-embed domain "d" user-id "u" organisation-id 1 allow-widgets [MCQ] activity-edit [ item-search ${inner} {} ] {}..`;
+
+  test("a list of item banks compiles and resolves its path", async () => {
+    const out = await compile(bank('item-banks [{organisation_id: 100, item_bank_name: "Math", item_pool_id: "p1"} {organisation_id: 200}]'));
+    expect(out.warnings).toEqual([]);
+    expect(out.config["item-search"]["item-banks"]).toEqual([
+      { organisation_id: 100, item_bank_name: "Math", item_pool_id: "p1" },
+      { organisation_id: 200 },
+    ]);
+    expect(out.paths["config.item-search.item-banks"])
+      .toBe("config.activity_edit.item_search.item_banks");
+  });
+
+  test("a key outside the schema is stripped, and the record survives", async () => {
+    const out = await compile(bank('item-banks [{organisation_id: 100, bank: "x"}]'));
+    expect(out.config["item-search"]["item-banks"]).toEqual([{ organisation_id: 100 }]);
+    expect(hasWarning(out, `"bank" isn't part of this record`)).toBe(true);
+  });
+
+  // Each key runs through the same validator as a property, so types come for free.
+  test("a record field is type-checked like any other property", async () => {
+    const out = await compile(bank('item-banks [{organisation_id: "one-hundred"}]'));
+    expect(hasWarning(out, "organisation_id must be a number")).toBe(true);
+  });
+
+  // `filter` is real Learnosity vocabulary, just beyond this schema's reach. Saying so
+  // keeps it distinct from a typo and from something we quietly passed through.
+  test("a documented-but-unmodeled key reports itself as such, not as a typo", async () => {
+    const out = await compile(bank("item-banks [{organisation_id: 100, filter: {}}]"));
+    expect(out.config["item-search"]["item-banks"]).toEqual([{ organisation_id: 100 }]);
+    expect(hasWarning(out, "documented Learnosity option that L0177 doesn't model yet")).toBe(true);
+    expect(hasWarning(out, `"filter" isn't part of this record`)).toBe(false);
+  });
+
+  test("a non-record entry is rejected", async () => {
+    const out = await compile(bank('item-banks ["not-a-record"]'));
+    expect(out.config["item-search"]["item-banks"]).toEqual([]);
+    expect(hasWarning(out, "each entry must be a record")).toBe(true);
+  });
+});
+
 describe("no keyword shadows the inherited L0000 vocabulary", () => {
   // `filter.restricted` and `toolbar.add` are named `filter-restricted` and
   // `toolbar-add` precisely so that base `filter` and `add` survive. Assert the

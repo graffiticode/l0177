@@ -32,6 +32,10 @@ Uniform rules:
   `type` is required; `name` takes one string or several, and omitting it matches every name of
   that type. A tag missing its `type` is dropped and any other key is stripped — under fail-open
   semantics a misspelt key would otherwise ride along and silently narrow nothing.
+- **Some values are records**, mirroring Learnosity's payload — content tags above, and
+  `item-banks [{organisation_id: 100, item_bank_name: "Math", item_pool_id: "p1"}]` for
+  multiple item-bank sources. Record keys use Learnosity's own spelling; a key outside the
+  schema is stripped with a warning.
 - **Smart defaults**: everything is optional; `item {}` is a fully-defaulted item. Write only what you change.
 
 ## The view selects the mode (one per program)
@@ -65,7 +69,7 @@ the (view, member) context where Learnosity actually defines it:
 | `item-list` | `toolbar` | `toolbar-add` `search-show` `search-status` `search-tags-show` `search-widget-type` (bool) · `search-controls`(list of str) |
 | `item-list` | *(view-level)* | `limit`(num, 1–50) |
 | `activity-edit` | `item` | `add-show` `edit-allow` `status-show` `title-show` `title-show-reference` `custom-points-toggle-show` `custom-points-toggle-default-checked` |
-| `activity-edit` | `item-search` | `show` `back` `sort` `limit` · `title-show` `title-show-reference` · `filter-restricted-current-user` · `filter-restricted-created-by`(str list) · `filter-restricted-tags-all` `filter-restricted-tags-either` `filter-restricted-tags-none`(tag list) · `toolbar-search-show` · `toolbar-search-controls`(str list) |
+| `activity-edit` | `item-search` | `show` `back` `sort` `limit` · `title-show` `title-show-reference` · `filter-restricted-current-user` · `filter-restricted-created-by`(str list) · `filter-restricted-tags-all` `filter-restricted-tags-either` `filter-restricted-tags-none`(tag list) · `item-banks`(record list) · `toolbar-search-show` · `toolbar-search-controls`(str list) |
 | `activity-edit` | `player-playback` | `show` · and `show`/`edit` pairs for `distractor-rationale-*` `distractor-rationale-response-level-*` `scroll-to-top-*` `scrolling-indicator-*` `shuffle-items-*` `skip-submit-confirmation-*` `submit-criteria-*` `warning-on-change-*` `show-acknowledgements-*` |
 | `activity-edit` | `player-time` | `show` · `show`/`edit` pairs for `auto-save-*` `idle-timeout-*` `limit-type-*` `warning-time-*` · `reading-mode-goto-first-item-on-reading-time-completion-show` |
 | `activity-edit` | `player-administration` | `show` · `show`/`edit` pairs for `show-exit-*` `show-extend-*` `show-save-*` |

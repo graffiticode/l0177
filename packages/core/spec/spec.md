@@ -45,7 +45,7 @@ different Learnosity node in `item-edit` than in `item-list`, and the shared nam
 | `item-list` › `toolbar` | `toolbar-add` `search-show` `search-status` `search-tags-show` `search-widget-type` (bool) · `search-controls`(str list) |
 | `item-list` (view-level) | `limit`(num) |
 | `activity-edit` › `item` | `add-show` `edit-allow` `status-show` `title-show` `title-show-reference` `custom-points-toggle-show` `custom-points-toggle-default-checked` (bool) |
-| `activity-edit` › `item-search` | `show` `back` `sort` `filter-restricted-current-user` `toolbar-search-show` (bool) · `limit`(num) · `filter-restricted-created-by` `toolbar-search-controls` (str list) · `filter-restricted-tags-all` `filter-restricted-tags-either` `filter-restricted-tags-none` (tag list) |
+| `activity-edit` › `item-search` | `show` `back` `sort` `filter-restricted-current-user` `toolbar-search-show` (bool) · `limit`(num) · `filter-restricted-created-by` `toolbar-search-controls` (str list) · `filter-restricted-tags-all` `filter-restricted-tags-either` `filter-restricted-tags-none` (tag list) · `item-banks`(record list of `{organisation_id, item_bank_name, item_pool_id}`) |
 | `activity-edit` › `player-playback` `player-time` `player-administration` `player-text` `player-scoring` | the assessment-player panes; each option is a `show`/`edit` pair, e.g. `limit-type-show` `limit-type-edit` |
 | `activity-edit` › `activity-edit-save` `duplicate` `title` | `show` `persist` `restricted-tags-allow-save` · `restricted-tags-all` `restricted-tags-either`(tag list) · `deep-copy` `duplicate-shared-passages` · `edit` `mandatory` |
 | `activity-list` › `filter-restricted` | `current-user`(bool) · `created-by` `status` (str list) · `tags-all` `tags-either` `tags-none` (tag list) |

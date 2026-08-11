@@ -28,7 +28,7 @@ author-embed
   user-id "u123"
   reference "algebra-item-1"
   organisation-id 100
-  allow-widgets [MCQ CLOZE-TEXT]
+  question-type-groups [MCQ CLOZE]
   item-edit [
     item back true scoring true reference-prefix "LEAR_" {}
     widget edit true delete false {}
@@ -42,24 +42,38 @@ The grammar is uniform:
 | :-------- | :---: | :--- |
 | `author-embed` | 1 | Head; takes the property + view chain. |
 | `item-edit` `item-list` `activity-edit` `activity-list` | 2 | **Views** — take a `[list]` of members; the view selects the Learnosity mode. |
-| `item` `widget` `settings` | 1 | **Members** — take a property chain. |
+| `item` `widget` `settings` `filter-restricted` `toolbar` `player-playback` … | 1 | **Members** (14) — take a property chain. Which ones a view accepts, and which properties each takes, depends on the view. |
 | `container` `widget-templates` `global` | 2 | **Sections** — take a property sub-chain. |
 
 Every **property** is a lowercase-kebab **arity-2** function (`name value`) that chains; chains end with `{}`. Everything is optional — write only what you change.
 
 | Context | Properties |
 | :------ | :--------- |
-| top-level | `domain`(str, req) · `user-id`(str, req) · `user-email` · `user-firstname` · `user-lastname` · `reference`(str) · `organisation-id`(num) · `allow-widgets`(tag list) |
-| `item` | `answers` `back` `columns` `dynamic-content` `dynamic-image-tag` `enable-audio-recording` `scoring` `shared-passage` `status` `tabs` · `reference-show` `reference-edit` · `reference-prefix`(str) · `tags-show` `tags-edit` |
-| `widget` | `edit` `delete` |
-| `settings` | `show` `full-height` |
-| `container` | `height` `fixed-footer-height`(num) · `scroll-into-view-selector`(str) |
-| `widget-templates` | `back` `save` `require-validation` |
-| `global` | `disable-onbeforeunload` |
+| top-level | `domain`(str, req) · `user-id`(str, req) · `user-email` · `user-firstname` · `user-lastname` · `reference`(str) · `organisation-id`(num) · `question-type-groups`(group tags) · `allow-widgets`(widget tags) |
+| sections | `container` (`height` `fixed-footer-height` `scroll-into-view-selector`) · `widget-templates` (`back` `save` `require-validation`) · `global` (`disable-onbeforeunload`) |
+| views | 186 further options across `item-edit`, `item-list`, `activity-edit` and `activity-list` — see the [vocabulary reference](packages/core/spec/instructions.md) |
 
-Widget-type values are **UPPERCASE-kebab tags**, never quoted strings — `MCQ`, `SHORT-TEXT`, `CLOZE-TEXT`, `FORMULA`, `TOKEN-HIGHLIGHT`, and others (each maps to Learnosity's exact lowercase type string). Because function keywords are lowercase-kebab, the two can never collide. An unknown property is a parse error.
+**Properties are scoped to the view they appear in**, because Learnosity's own config is:
+`config.item_edit.item` and `config.item_list.item` are different nodes sharing one field name, and
+`status` is a boolean in one place and a list of strings in another. A property used where the API
+doesn't define it is dropped with a warning rather than emitted — under fail-open semantics an
+ignored key is worse than an error. Every option the compiler accepts is reported with its exact
+Learnosity path in `data.paths`.
 
-There is no in-UI switching between the four views, so the view you choose *is* the mode — each is a separate page and integration. Only `item-edit` is fully modeled today; the other three validate loosely and say so in a warning.
+Enum values are **UPPERCASE-kebab tags**, never quoted strings. Because function keywords are
+lowercase-kebab, the two can never collide, and an unknown property is a parse error.
+
+- **Question-type groups** (`question-type-groups`) — `MCQ` `CLOZE` `MATCH` `WRITE-SPEAK`
+  `HIGHLIGHT` `MATH` `GRAPH` `CHART` `CHEMISTRY` `OTHER`: the ten panes of the editor's question
+  picker, and the granularity at which the API restricts.
+- **Widget types** (`allow-widgets`) — `MCQ` `SHORT-TEXT` `CLOZE-TEXT` `FORMULA` `TOKEN-HIGHLIGHT`
+  and others, each mapping to Learnosity's exact lowercase type string.
+
+Some values are records, written the way Learnosity receives them — content tags as
+`[{type: "Grade", name: "4"}]`, item bank sources as
+`[{organisation_id: 100, item_bank_name: "Math"}]`.
+
+There is no in-UI switching between the four views, so the view you choose *is* the mode — each is a separate page and integration. All four are fully modeled: **193 configuration options**, every emitted path cross-checked against Learnosity's published reference.
 
 See [`packages/core/spec/`](packages/core/spec/) for the full specification, examples, and authoring guide.
 
@@ -67,9 +81,23 @@ See [`packages/core/spec/`](packages/core/spec/) for the full specification, exa
 
 The Learnosity Author API **fails open on `config`**: an unrecognized key is silently ignored — the editor still initializes, `readyListener` still fires, and the page looks correct while enforcing nothing.
 
-L0177 takes that seriously. Where a config binding is unconfirmed — today, the one that restricts which question types an author may add — the recipe **says so and refuses to name a path** rather than filling the gap with a plausible guess that would silently do nothing. For the same reason, verification steps on config-driven behaviour are **differential**: they ask you to load the editor twice, once with the key omitted, because simply observing the behaviour you wanted proves nothing under fail-open semantics.
+L0177 takes that seriously, and states plainly which of its options are enforced and which are not.
 
-Don't upgrade that uncertainty from recalled Learnosity docs. A design being expressible is not a promise that Learnosity enforces it.
+**`question-type-groups` is enforced.** Restricting the editor's question picker was verified
+against the live API by comparing against a control: 10 groups and 51 templates unrestricted, 2 and
+13 when restricted to multiple-choice and cloze. The recipe names the config path as fact.
+
+**`allow-widgets` is not.** It names finer-grained question *types*, while the mechanism selects
+question-type *groups*, and one group holds several types. No confirmed key restricts per type, so
+the recipe carries it as intent plus a check — and the compiler warns when a design reaches for it
+alone, expecting enforcement it will not get.
+
+This distinction was expensive to learn. The restriction was once recorded as not working at all,
+because a config that *added* a picker group left the editor looking untouched — the config was in
+force and invisible. That is why verification steps here are **differential**: they load the editor
+twice, once with the key omitted, because observing the behaviour you wanted proves nothing on its
+own. Don't upgrade an unconfirmed binding from recalled documentation; a design being expressible is
+not a promise that Learnosity enforces it.
 
 ## Structure
 

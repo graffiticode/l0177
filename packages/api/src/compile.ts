@@ -15,22 +15,14 @@ export async function compile({
   if (!code || !data) {
     throw new Error("Missing required parameters: code and data");
   }
-  // Inject Learnosity consumer credentials from the api process's environment
-  // into `config` (which the core compiler reads as `options.config`). Secrets
-  // live here, in the api process, and never at the core package's module scope.
-  // A program that supplies its own `set-var "learnosity-key"/"learnosity-secret"`
-  // still overrides these (see resolveCredentials in the core compiler).
-  const mergedConfig = {
-    ...config,
-    learnosity: {
-      key: process.env.LEARNOSITY_KEY,
-      secret: process.env.LEARNOSITY_SECRET,
-      ...(config?.learnosity ?? {}),
-    },
-  };
+  // No Learnosity credentials are injected here. L0177 is an oracle: it emits a
+  // developer recipe, it never signs or sends a Learnosity request, so this process
+  // has no use for a consumer key or secret. The caller's own integration signs
+  // server-side with their credentials, as the recipe instructs.
+  //
   // Response envelope: success output in `data`, compile errors in `errors` (array).
   return await new Promise((resolve) =>
-    compiler.compile(code, data, mergedConfig, (err: any, out: any) => {
+    compiler.compile(code, data, config, (err: any, out: any) => {
       const errors = Array.isArray(err) ? err.filter(Boolean) : err ? [err] : [];
       if (errors.length > 0) {
         resolve({ data: null, errors });

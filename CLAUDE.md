@@ -216,13 +216,9 @@ Client design (natural language) → generator writes L0177 source → POST /com
 
 ## Known stale code
 
-Two vestiges of the pre-oracle architecture are still in the tree. Don't build on them, and
-don't infer behaviour from them:
+One vestige of the pre-oracle architecture is still in the tree. Don't build on it, and don't
+infer behaviour from it:
 
-- **`packages/api/src/compile.ts` injects `LEARNOSITY_KEY`/`LEARNOSITY_SECRET`** into
-  `config.learnosity` and refers to a `resolveCredentials` in the core compiler. That function
-  no longer exists and the core never reads `options.config` — the oracle signs nothing. The
-  injection is dead, as are those two environment variables.
 - **`packages/view/src/components/form/Form.tsx`** switches on `state.data.type` ∈
   `questions|author|items` and mounts a signed `request` into the Learnosity browser SDK. The
   compiler emits no `type` and no `request`, so every program falls through to the raw

@@ -241,7 +241,20 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
   | `IMAGE-CLOZE-TEXT` | `imageclozetext` |
 
   Example: the design `allow-widgets [MCQ CLOZE-TEXT]` refers to the question types `mcq` and `clozetext` — **RIGHT**. Writing `MCQ`, `CLOZE_TEXT`, or `CLOZE-TEXT` as the Learnosity value is **WRONG**. (These are question TYPES; the enforced restriction operates on question-type GROUPS — see above.)
-- **Widget edit/delete permissions:** Learnosity's reference documents these at `config.item_edit.widget.edit` and `config.item_edit.widget.delete` (this also matches L0177's own `widget` member, which maps to `config.item_edit.widget`). **Not functionally verified** — the API type-checks neither, and it fails open, so treat it as documented-but-unconfirmed and make it a verification step. Do **not** use `config.widget_templates.edit`/`.delete`; that path is supported by nothing.
+- **Widget edit/delete permissions [verified].** `config.item_edit.widget.edit` and
+  `config.item_edit.widget.delete` (L0177's `widget` member) both work, and independently.
+  Measured differentially on an item holding two widgets, counting per-widget affordances:
+
+  | init config | Edit controls | Delete controls |
+  |---|---:|---:|
+  | control (no widget config) | 4 | 2 |
+  | `widget.delete: false` | 4 | **0** |
+  | `widget.edit: false` | **2** | 2 |
+
+  (Two of the four Edit controls are the item-level Edit/Preview toggle, which neither key
+  touches — `edit: false` removes exactly the two per-widget ones.) The recipe may state these
+  as fact. Do **not** use `config.widget_templates.edit`/`.delete`; that path is supported by
+  nothing.
 - **Client-side wiring [verified]:** provide a `readyListener` (fires when initialized) and an `errorListener` (`e.code` / `e.message` / `e.name`); optionally `assetRequest` (your DAM) and `customButtons`.
 
 ### Gotchas

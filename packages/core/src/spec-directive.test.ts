@@ -71,6 +71,8 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
     expect(directive).toContain("config.item_edit.widget.edit");
     expect(directive).toContain("widget_templates");
     expect(directive).toContain("supported by nothing");
+    // Verified differentially on an item with two widgets, so the recipe may assert them.
+    expect(directive).toContain("are VERIFIED");
   });
 });
 
@@ -83,6 +85,11 @@ describe("instructions.md keeps the canonical knowledge honest", () => {
       "math", "graph", "chart", "chemistry", "other"]) {
       expect(instructions).toContain(`\`${g}\``);
     }
+  });
+
+  test("the widget permission measurements are recorded", () => {
+    expect(instructions).toContain("Widget edit/delete permissions [verified]");
+    expect(instructions).toContain("control (no widget config)");
   });
 
   test("the additive-reference trap is written down, with its measurements", () => {

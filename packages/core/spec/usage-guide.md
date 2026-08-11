@@ -54,9 +54,9 @@ Everything is expressed in natural language — the generator writes the DSL. Gi
 The compiler validates each property, so under-specified or inconsistent designs come back as clear steering warnings to refine.
 
 **A design being expressible is not a promise that Learnosity enforces it.** `question-type-groups`
-is verified and may be promised. `allow-widgets` (question types) and the widget edit/delete
-permissions are expressible but their config bindings are **unconfirmed** — ask for them, and the
-recipe carries them as *intent* plus a check that can falsify them. Do not promise a restriction
+is verified and may be promised. The widget edit/delete permissions are verified too. `allow-widgets`
+(question types) is the one that is **not** — ask for it, and the recipe carries it as *intent*
+plus a check that can falsify it. Do not promise a restriction
 that has not been observed in a running editor.
 
 ## Out of scope

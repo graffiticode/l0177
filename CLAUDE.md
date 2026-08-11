@@ -251,8 +251,10 @@ exist. Do not soften them without new evidence:
   and *neither* callback fires — a blank page with nothing in the console.
 - **`domain` must equal the serving host.** A mismatch or tampered signature yields Learnosity
   error 41003 "Signatures do not match" — the #1 cause of a failed init.
-- Widget `edit`/`delete` permissions are documented at `config.item_edit.widget.edit`/`.delete`
-  but are **not** functionally verified. Never use `config.widget_templates.edit`/`.delete`.
+- **Widget `edit`/`delete` permissions are verified.** `config.item_edit.widget.edit`/`.delete`
+  each independently remove their per-widget affordance (measured on an item with two widgets:
+  control 4 Edit/2 Delete → `delete:false` gives 4/0, `edit:false` gives 2/2; the residual two
+  Edits are the item-level Edit/Preview toggle). Never use `config.widget_templates.edit`/`.delete`.
 
 ### Data Flow
 

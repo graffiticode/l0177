@@ -193,8 +193,18 @@ export const VIEWS: Record<string, View> = {
   // is already an item-edit member. Member and property keywords share ONE namespace
   // with one arity each — see the assertion in lexicon.ts.
   //
-  // Not modeled, pending a value type for object arrays: player_templates
-  // (array[PlayerTemplateObject]) and item_search.item_banks (array[ItemBankDefinition]).
+  // Two options are left out for different reasons, and the difference matters:
+  //
+  //   item_search.item_banks (array[ItemBankDefinition]) is DEFERRED. It is squarely in
+  //   scope — three scalars plus a `filter` shaped like item_search.filter — and needs a
+  //   field type whose elements validate against a declared schema, which nothing needs yet.
+  //
+  //   player_templates (array[PlayerTemplateObject]) is OUT OF SCOPE, not deferred. Past
+  //   `name` and `reference` it is Assess API configuration (labelBundle, regions,
+  //   navigation) ferried through the Author API, so modeling it means modeling Assess API.
+  //   Designs pick a template by reference via default-player-template /
+  //   enabled-player-templates. See spec/scope.json.
+  //
   // item_title is skipped as deprecated — the reference directs callers to
   // activity_edit.item.title instead.
   "activity-edit": {

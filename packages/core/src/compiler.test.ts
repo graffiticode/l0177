@@ -27,6 +27,7 @@ const COMPLETE = `author-embed
   reference "algebra-item-1"
   organisation-id 123
   allow-widgets [MCQ CLOZE-TEXT FORMULA]
+  question-type-groups [MCQ CLOZE]
   item-edit [
     item back true scoring true reference-prefix "LEAR_" {}
     widget edit true delete false {}
@@ -78,7 +79,7 @@ describe("design holes (progressive disclosure)", () => {
   test("holes filled → specificity advisories surface", async () => {
     const out = await compile('author-embed domain "d" user-id "u" reference "r" item-edit [ item {} ] {}..');
     expect(out.complete).toBe(true);
-    expect(hasWarning(out, "allow-widgets")).toBe(true);
+    expect(hasWarning(out, "question-type-groups")).toBe(true);
     expect(hasWarning(out, "item bank")).toBe(true);
   });
 });
@@ -132,7 +133,7 @@ describe("per-property + cross-context validation", () => {
 describe("item-edit vocabulary", () => {
   test("the item editor's grouped nodes compile and resolve to their paths", async () => {
     const out = await compile(`author-embed
-      domain "d" user-id "u" reference "r" organisation-id 1 allow-widgets [MCQ]
+      domain "d" user-id "u" reference "r" organisation-id 1 allow-widgets [MCQ] question-type-groups [MCQ]
       item-edit [
         item actions-show true
              details-difficulty-show true details-difficulty-edit false
@@ -244,7 +245,7 @@ describe("item-list vocabulary", () => {
 
 describe("activity-edit vocabulary", () => {
   const ACT = `author-embed
-    domain "lms.acme.edu" user-id "u123" reference "quiz-1" organisation-id 7 allow-widgets [MCQ]
+    domain "lms.acme.edu" user-id "u123" reference "quiz-1" organisation-id 7 allow-widgets [MCQ] question-type-groups [MCQ]
     activity-edit [
       back true details true mode-default "edit" reference-show true status-show false {}
       item add-show true edit-allow true title-show-reference false {}
@@ -374,7 +375,7 @@ describe("tag lists", () => {
   });
 
   test("tag lists reach every view that documents them", async () => {
-    const ie = await compile('author-embed domain "d" user-id "u" reference "r" organisation-id 1 allow-widgets [MCQ] item-edit [ item save-restricted-tags-all [{type: "Status", name: "draft"}] {} tags-on-create [{type: "Subject", name: "Math"}] {} ] {}..');
+    const ie = await compile('author-embed domain "d" user-id "u" reference "r" organisation-id 1 allow-widgets [MCQ] question-type-groups [MCQ] item-edit [ item save-restricted-tags-all [{type: "Status", name: "draft"}] {} tags-on-create [{type: "Subject", name: "Math"}] {} ] {}..');
     expect(ie.warnings).toEqual([]);
     expect(ie.paths["config.item.save-restricted-tags-all"])
       .toBe("config.item_edit.item.save.restricted_tags.all");
@@ -388,7 +389,7 @@ describe("tag lists", () => {
 
 describe("record lists (item banks)", () => {
   const bank = (inner: string) =>
-    `author-embed domain "d" user-id "u" organisation-id 1 allow-widgets [MCQ] activity-edit [ item-search ${inner} {} ] {}..`;
+    `author-embed domain "d" user-id "u" organisation-id 1 allow-widgets [MCQ] question-type-groups [MCQ] activity-edit [ item-search ${inner} {} ] {}..`;
 
   test("a list of item banks compiles and resolves its path", async () => {
     const out = await compile(bank('item-banks [{organisation_id: 100, item_bank_name: "Math", item_pool_id: "p1"} {organisation_id: 200}]'));
@@ -449,6 +450,56 @@ describe("view-level chains must be terminated", () => {
   });
 });
 
+describe("question-type-groups (the one enforced restriction)", () => {
+  const base = (extra: string) =>
+    `author-embed domain "d" user-id "u" reference "r" organisation-id 1 ${extra} item-edit [] {}..`;
+
+  // Verified differentially against the live Author API: overriding a group reference
+  // with an empty template_references removes the group; overriding it with the key
+  // omitted leaves the group whole. Naming only the wanted groups restricts NOTHING —
+  // extra references are additive — so all ten must be overridden.
+  test("all ten groups are overridden: named ones kept whole, the rest removed", async () => {
+    const out = await compile(base("question-type-groups [MCQ CLOZE]"));
+    expect(out.warnings).toEqual([]);
+    const g = out.question_type_groups;
+    expect(g).toHaveLength(10);
+    const kept = g.filter((x: any) => x.template_references === undefined).map((x: any) => x.reference);
+    const removed = g.filter((x: any) => Array.isArray(x.template_references) && x.template_references.length === 0);
+    expect(kept).toEqual(["mcq", "cloze"]);
+    expect(removed).toHaveLength(8);
+  });
+
+  test("it resolves to the verified Learnosity path", async () => {
+    const out = await compile(base("question-type-groups [MATH]"));
+    expect(out.paths["question-type-groups"])
+      .toBe("config.dependencies.question_editor_api.init_options.question_type_groups");
+  });
+
+  // SHORT-TEXT is a perfectly good widget tag, but groups and question types are
+  // different taxonomies — using one where the other belongs must not silently pass.
+  // (A token that is no tag at all, like ESSAY, is a parse error instead.)
+  test("a widget tag used as a group tag warns and is not emitted", async () => {
+    const out = await compile(base("question-type-groups [MCQ SHORT-TEXT]"));
+    expect(hasWarning(out, "SHORT-TEXT isn't a question-type group")).toBe(true);
+    expect(out.question_type_groups.filter((x: any) => x.template_references === undefined))
+      .toEqual([{ reference: "mcq", name: "mcq" }]);
+  });
+
+  // allow-widgets names question types; nothing confirmed restricts at that granularity.
+  // A design reaching for it alone must be told it enforces nothing.
+  test("allow-widgets alone is flagged as unenforced", async () => {
+    const out = await compile(base("allow-widgets [MCQ CLOZE-TEXT]"));
+    expect(out.question_type_groups).toBeUndefined();
+    expect(hasWarning(out, "on its own it enforces nothing")).toBe(true);
+    expect(hasWarning(out, "add `question-type-groups`")).toBe(true);
+  });
+
+  test("with no restriction at all, the advisory names the enforced one", async () => {
+    const out = await compile(base(""));
+    expect(hasWarning(out, "the editor offers all ten question-type groups")).toBe(true);
+  });
+});
+
 describe("no keyword shadows the inherited L0000 vocabulary", () => {
   // `filter.restricted` and `toolbar.add` are named `filter-restricted` and
   // `toolbar-add` precisely so that base `filter` and `add` survive. Assert the
@@ -461,7 +512,7 @@ describe("no keyword shadows the inherited L0000 vocabulary", () => {
   });
 
   test("base filter is still usable as a list function", async () => {
-    const out = await compile('author-embed domain "d" user-id "u" reference "r" organisation-id 1 allow-widgets [MCQ] item-edit [] {}..');
+    const out = await compile('author-embed domain "d" user-id "u" reference "r" organisation-id 1 allow-widgets [MCQ] question-type-groups [MCQ] item-edit [] {}..');
     expect(out.mode).toBe("item_edit");
     expect(out.warnings).toEqual([]);
   });

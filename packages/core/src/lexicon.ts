@@ -5,7 +5,7 @@
 //   - views + sections + every property                                       : arity 2
 //   - widget-type enum values                                                  : TAG tokens
 import { lexicon as base, mergeLexicon } from "@graffiticode/l0000";
-import { ARITY1, VIEWS, SECTIONS, PROPERTIES, WIDGET_TAGS, TOK } from "./vocab.js";
+import { ARITY1, VIEWS, SECTIONS, PROPERTIES, WIDGET_TAGS, GROUP_TAGS, TOK } from "./vocab.js";
 
 const F = (name: string, arity: number) => ({ tk: 1, name, cls: "function", length: arity, arity });
 const TAG = () => ({ tk: 22, name: "TAG", cls: "val", length: 0, arity: 0 });
@@ -34,7 +34,7 @@ for (const k of ARITY1) additions[k] = F(TOK(k), 1);
 for (const k of [...Object.keys(VIEWS), ...Object.keys(SECTIONS), ...PROPERTIES]) {
   additions[k] = F(TOK(k), 2);
 }
-for (const t of Object.keys(WIDGET_TAGS)) additions[t] = TAG();
+for (const t of [...Object.keys(WIDGET_TAGS), ...Object.keys(GROUP_TAGS)]) additions[t] = TAG();
 
 // The merge is child-over-parent, so an L0177 keyword that reuses a base name would
 // SHADOW it silently — the base function simply disappears from the dialect. That is

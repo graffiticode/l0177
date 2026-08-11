@@ -4,9 +4,17 @@ import { fileURLToPath } from "url";
 
 // These files are PROMPTS, not code: spec-directive.md drives get_spec, and instructions.md is the
 // canonical knowledge it draws on. Nothing else in the repo guards them, and every rule asserted
-// below is one we installed after the live Author API contradicted the recipe (commits c09225c..
-// 08be3cc). Delete a rule by accident and the generator quietly goes back to asserting a config
-// path that does nothing.
+// below was installed after a live Author API run contradicted the recipe.
+//
+// The rules have now been rewritten TWICE by live evidence, in opposite directions. First the
+// documented widget-type path turned out to restrict nothing, so the recipe was made to refuse
+// any path. Then a differential run showed the restriction does work — via question_type_groups,
+// overriding all ten default groups — and that the earlier "no effect" reading came from supplying
+// a NEW group reference, which is additive: the config was in force and the picker looked
+// untouched. Both readings were honest; only the comparison against a control separated them.
+//
+// So these assertions now pin the verified mechanism. If a future run contradicts it again, change
+// them again — but only on evidence from a differential run, never from documentation alone.
 //
 // What this test does NOT do: it pins the prompt, not the output. A passing run says the rules are
 // still written down — it cannot tell you the generator obeyed them. Recipe generation is sampled,
@@ -23,11 +31,23 @@ const directive = read("spec-directive.md");
 const instructions = read("instructions.md");
 
 describe("spec-directive.md keeps the rules the live API taught us", () => {
-  test("refuses to assert a config path for widget-type restriction", () => {
-    expect(directive).toContain("never assert a config path");
-    // The old path must appear as a banned path, not as an instruction.
-    expect(directive).toContain("restricts NOTHING");
-    expect(directive).toContain("do NOT substitute another guess");
+  test("asserts the verified group path, and explains why all ten groups appear", () => {
+    expect(directive).toContain("config.dependencies.question_editor_api.init_options.question_type_groups");
+    expect(directive).toContain("overrides all ten default groups");
+    // The trap that made this key read as inert: an unknown group reference is additive.
+    expect(directive).toContain("ADDITIVE");
+  });
+
+  test("still refuses the paths that were shown not to restrict", () => {
+    expect(directive).toContain("Never emit these");
+    expect(directive).toContain("widgetTypes");
+    expect(directive).toContain("widget_templates.widget_types");
+  });
+
+  test("question types stay intent — only groups are enforced", () => {
+    expect(directive).toContain("Question TYPES are a different taxonomy");
+    expect(directive).toContain("NOT restrictable");
+    expect(directive).toContain("Do NOT invent a per-type config key");
   });
 
   test("config-behaviour checks must be differential, including enabling keys", () => {
@@ -55,9 +75,21 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
 });
 
 describe("instructions.md keeps the canonical knowledge honest", () => {
-  test("the widget-type restriction is marked unverified, not documented as working", () => {
-    expect(instructions).toContain("MECHANISM UNVERIFIED");
-    expect(instructions).toContain("does not restrict anything");
+  test("the restriction mechanism is recorded as verified, with its group references", () => {
+    expect(instructions).toContain("MECHANISM VERIFIED");
+    expect(instructions).toContain("question_type_groups");
+    // Every group must be listed: restricting means overriding all ten.
+    for (const g of ["mcq", "cloze", "match", "writespeak", "highlight",
+      "math", "graph", "chart", "chemistry", "other"]) {
+      expect(instructions).toContain(`\`${g}\``);
+    }
+  });
+
+  test("the additive-reference trap is written down, with its measurements", () => {
+    expect(instructions).toContain("ADDS");
+    expect(instructions).toContain("restricts nothing");
+    // The differential table is the evidence; without it the claim is just an assertion.
+    expect(instructions).toContain("control (nothing set)");
   });
 
   test("fail-open semantics are recorded — the root cause of the bad recipe", () => {

@@ -25,7 +25,7 @@ import {
   Compiler,
 } from "@graffiticode/l0000";
 import {
-  ARITY1, VIEWS, SECTIONS, TOPLEVEL, PROPERTIES, WIDGET_TAGS, TOK,
+  ARITY1, VIEWS, SECTIONS, TOPLEVEL, PROPERTIES, WIDGET_TAGS, GROUP_TAGS, TOK,
   type Fields,
 } from "./vocab.js";
 
@@ -52,6 +52,22 @@ function validateProp(
   const rangeWarn = (v: any) =>
     pushWarn(options, `${name}: ${JSON.stringify(v)} isn't one of ${values!.map((s) => `"${s}"`).join(", ")}.`);
 
+  if (type === "groups") {
+    // Restricting means overriding ALL ten default groups: the ones named keep their
+    // templates (omit template_references) and the rest are removed (empty array).
+    // Naming only the wanted groups would leave the other eight in place — verified
+    // against the live API, and the trap the earlier investigation fell into.
+    const list = Array.isArray(value) ? value : value == null ? [] : [value];
+    const keep = new Set<string>();
+    for (const t of list) {
+      const tag = t && typeof t === "object" && "tag" in t ? (t as any).tag : t;
+      if (GROUP_TAGS[tag]) keep.add(GROUP_TAGS[tag]);
+      else pushWarn(options, `${name}: ${tag} isn't a question-type group — use ${Object.keys(GROUP_TAGS).join(", ")}.`);
+    }
+    if (keep.size === 0) return undefined;
+    return Object.values(GROUP_TAGS).map((g) =>
+      keep.has(g) ? { reference: g, name: g } : { reference: g, name: g, template_references: [] });
+  }
   if (type === "records") {
     // A list of records checked against a declared schema (today: item banks). Each key
     // is validated by the same machinery as a property, so nested enums and types come
@@ -184,11 +200,19 @@ function finalize(rec: any, options: any): any {
   if (!isNonEmptyString(top["user-id"])) holes.push("Your design doesn't identify the author (required). Provide `user-id` — the author's stable id.");
   if (mode === "item_edit" && !isNonEmptyString(top.reference)) holes.push("item-edit needs a `reference` — the existing item to edit, or a new reference to create.");
 
-  if (top["allow-widgets"] === undefined && (mode === "item_edit" || mode === "activity_edit")) {
-    specificity.push("`allow-widgets` not restricted — the editor exposes all default widget types. Restrict it to the types your authors should use.");
+  // What the editor actually offers is set by question-type-groups; allow-widgets names
+  // the finer-grained question types, which no confirmed config key selects. So the nudge
+  // depends on which of the two a design reached for.
+  if (top["question-type-groups"] === undefined && (mode === "item_edit" || mode === "activity_edit")) {
+    specificity.push(top["allow-widgets"] !== undefined
+      ? "`allow-widgets` names question types, which Learnosity has no confirmed way to restrict — on its own it enforces nothing. Add `question-type-groups` to actually limit the picker; the group is the level the Author API enforces."
+      : "No `question-type-groups` — the editor offers all ten question-type groups. This is the one restriction the Author API is confirmed to enforce.");
   }
   if (top["organisation-id"] === undefined) {
     specificity.push("No item bank specified (`organisation-id`) — the default is used.");
+  }
+  if (top["question-type-groups"] !== undefined) {
+    recordPath(options, "question-type-groups", TOPLEVEL["question-type-groups"][0] as string);
   }
 
   // Holes lead (progressive disclosure), and specificity nudges wait until they're filled —
@@ -202,6 +226,7 @@ function finalize(rec: any, options: any): any {
     reference: top.reference,
     organisation_id: top["organisation-id"],
     allow_widgets: top["allow-widgets"],
+    question_type_groups: top["question-type-groups"],
     config: top.config,
     container: top.container,
     widget_templates: top["widget-templates"],

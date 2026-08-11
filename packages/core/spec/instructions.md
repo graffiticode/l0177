@@ -13,6 +13,7 @@ author-embed
   user-id "u123"
   reference "algebra-item-1"
   organisation-id 100
+  question-type-groups [MCQ CLOZE]
   allow-widgets [MCQ CLOZE-TEXT]
   item-edit [
     item back true scoring true reference-prefix "LEAR_" {}
@@ -118,7 +119,14 @@ Learnosity's own segment name, not our flattening.
 - **`user-id`** (string, required) — the author's stable id (recorded in the item-bank audit trail). Also `user-email`, `user-firstname`, `user-lastname` (optional).
 - **`reference`** (string) — the item/activity to edit (required for `item-edit`).
 - **`organisation-id`** (number) — which item bank to load from.
-- **`allow-widgets`** (list of widget-type **tags**) — restrict the question types authors can add.
+- **`question-type-groups`** (list of group **tags**: `MCQ`, `CLOZE`, `MATCH`, `WRITE-SPEAK`,
+  `HIGHLIGHT`, `MATH`, `GRAPH`, `CHART`, `CHEMISTRY`, `OTHER`) — **the only restriction the Author
+  API is confirmed to enforce.** Names the picker groups authors may use; every other group is
+  removed. Emits the verified `question_type_groups` config; read its path from `data.paths`.
+- **`allow-widgets`** (list of widget-type **tags**) — the finer-grained question types the design
+  intends. Nothing confirmed restricts at this granularity, so on its own it enforces nothing; the
+  compiler says so. Use it alongside `question-type-groups` to record intent the recipe can name and
+  a verification step can check.
 
 **Members**: see the view-scoped table above — a member's legal properties depend on the view it
 appears in, and so does the type of a shared name like `status`.
@@ -157,25 +165,53 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
 
 - **⚠ The Author API FAILS OPEN on config [verified].** An unrecognized `config` key is **silently ignored**: the editor still initializes, `readyListener` still fires, and the page looks correct — while enforcing nothing. A wrong config path therefore produces an authoring experience that *appears* restricted but is not. Never tell a client a restriction is in force unless they have observed it in the running editor.
 
-- **⚠ Widget-type restriction: MECHANISM UNVERIFIED — do not assert a config path.**
-  The previously-documented path here (`config.dependencies.question_editor_api.init_options.widgetTypes`)
-  was tested against the live Author API and **does not restrict anything** — the editor loaded with all
-  ten question-type groups (Math, Graphing, Chemistry, …) still on offer — identical to a control init with
-  no restriction at all. These were also tested and did **not** restrict the picker:
-  `config.widget_templates.widget_types` (silently ignored — not even type-checked) and
-  `config.dependencies.question_editor_api.init_options.question_type_groups` (the *only* key the API
-  type-checks — a non-array errors with *"question_type_groups must be an array"* — yet no valid shape tried
-  had any effect on the picker).
-  So: when `allow-widgets` is set, the recipe MUST state that the restriction is a **design intent whose
-  Learnosity config binding is not yet confirmed**, direct the client to the Author API initialization
-  reference, and make it a **verification step** ("open the widget picker and confirm only the intended
-  types are offered") rather than a claim. Do not fabricate a path to fill the gap — given fail-open
-  semantics, a wrong path is worse than an acknowledged unknown.
+- **✅ Restricting what authors may add: MECHANISM VERIFIED [verified].** The Author API restricts
+  at the level of the picker's **question-type groups**, through
+  `config.dependencies.question_editor_api.init_options.question_type_groups`. Each entry is
+  `{reference, name, template_references?}`, and behaviour depends on the reference:
+  - an **existing** group reference **overrides** that group's template list;
+  - `template_references: []` **removes** the group entirely;
+  - `template_references` **omitted** leaves the group whole;
+  - a **new** reference **ADDS** a group — it restricts nothing.
+
+  So restricting means **overriding all ten default groups**: omit `template_references` on the ones
+  to keep, give `[]` to the rest. The ten references are `mcq`, `cloze`, `match`, `writespeak`,
+  `highlight`, `math`, `graph`, `chart`, `chemistry`, `other`.
+
+  Measured against the live Author API (v1.144.0, demo consumer on `localhost`), counting groups and
+  template tiles in the picker:
+
+  | init config | groups | templates |
+  |---|---:|---:|
+  | control (nothing set) | 10 | 51 |
+  | `init_options.widgetTypes` | 10 | 51 |
+  | `question_type_groups`, **new** reference | 11 | 53 |
+  | `question_type_groups`, override `mcq` with one reference | 10 | 45 |
+  | `question_type_groups`, override `math` with `[]` | 9 | 44 |
+  | override all ten, keeping `mcq` + `cloze` | **2** | **13** |
+
+  **This is why an earlier investigation concluded the key did nothing.** Supplying a *new* group
+  reference is additive: the config was in force and the picker looked untouched. Only comparing
+  against a control distinguishes "ignored" from "additive" — the fail-open trap in its purest form.
+
+- **⚠ Question TYPES are a different taxonomy from groups, and are not restrictable [verified].**
+  `allow-widgets` names question types (`mcq`, `clozetext`). The mechanism above selects **groups and
+  templates**, and one group holds several types — the `cloze` group carries six templates. No
+  confirmed key restricts by question type. So `allow-widgets` remains **design intent**: name the
+  types in the recipe, and carry the restriction as a **verification step**. Finer-grained control is
+  possible only by naming individual `template_references`, whose values are opaque and discoverable
+  solely from the running editor (the `data-lrn-qe-template-reference` attribute on each picker tile).
+
+- **⚠ These do NOT restrict the picker [verified]:**
+  `config.dependencies.question_editor_api.init_options.widgetTypes` (no effect; absent from the
+  current reference) and `config.widget_templates.widget_types`, which is documented as
+  `{default, show}` — which tile view opens and whether the type buttons show. It was never a
+  restriction key, so testing it for restriction tested the wrong thing.
 
 - **Widget-type name strings [verified against the published schema]:** the question `type` values below are
   Learnosity's exact lowercase strings (confirmed in `schemas.learnosity.com` → `question_type_templates`,
-  which is keyed by exactly these). They are correct as *question type* identifiers; that is independent of
-  the unresolved question of *which config key* accepts a restriction list. Copy them exactly — do NOT
+  which is keyed by exactly these). They are correct as *question type* identifiers, which is a separate taxonomy from the
+  picker groups that `question_type_groups` restricts. Copy them exactly — do NOT
   derive them, do NOT uppercase them, do NOT add underscores:
 
   | DSL tag | Learnosity question `type` value |
@@ -204,7 +240,7 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
   | `IMAGE-CLOZE-ASSOCIATION` | `imageclozeassociation` |
   | `IMAGE-CLOZE-TEXT` | `imageclozetext` |
 
-  Example: the design `allow-widgets [MCQ CLOZE-TEXT]` refers to the question types `mcq` and `clozetext` — **RIGHT**. Writing `MCQ`, `CLOZE_TEXT`, or `CLOZE-TEXT` as the Learnosity value is **WRONG**. (Which config key carries this list is the unresolved question above — name the types, don't invent the binding.)
+  Example: the design `allow-widgets [MCQ CLOZE-TEXT]` refers to the question types `mcq` and `clozetext` — **RIGHT**. Writing `MCQ`, `CLOZE_TEXT`, or `CLOZE-TEXT` as the Learnosity value is **WRONG**. (These are question TYPES; the enforced restriction operates on question-type GROUPS — see above.)
 - **Widget edit/delete permissions:** Learnosity's reference documents these at `config.item_edit.widget.edit` and `config.item_edit.widget.delete` (this also matches L0177's own `widget` member, which maps to `config.item_edit.widget`). **Not functionally verified** — the API type-checks neither, and it fails open, so treat it as documented-but-unconfirmed and make it a verification step. Do **not** use `config.widget_templates.edit`/`.delete`; that path is supported by nothing.
 - **Client-side wiring [verified]:** provide a `readyListener` (fires when initialized) and an `errorListener` (`e.code` / `e.message` / `e.name`); optionally `assetRequest` (your DAM) and `customButtons`.
 

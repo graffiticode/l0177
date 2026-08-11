@@ -7,7 +7,21 @@ Agent-facing guide for the Learnosity **Author API integration** oracle. Read th
 
 L0177 is a developer-integration oracle for the Learnosity **Author API**: it does not author assessment content — it produces a precise, host-language-neutral **recipe** for embedding and configuring an integrated **authoring experience** (the Learnosity item/activity editor or browser) in your own app. You describe the integration *design* — which experience to embed and how it's configured — L0177 validates it, flags any **holes** (missing required properties) as steering warnings, and via `get_spec` returns the recipe: goal, preconditions, procedure, gotchas, and runnable **verification steps**. You fill the holes over a few turns and implement the result in your own stack (Node, PHP, Ruby, .NET). L0177 never writes item content (that is L0176) and never emits runnable code.
 
-**The recipe states how sure it is, and you must not upgrade it.** The Author API **fails open on `config`**: an unrecognized key is silently ignored — the editor still initializes, `readyListener` still fires, and the page looks correct while enforcing nothing. So where a Learnosity config binding is unconfirmed (today: the one that restricts which question types an author may add), the recipe **says so and refuses to name a path**, rather than filling the gap with a plausible guess that would silently do nothing. Relay that uncertainty; never resolve it from recalled Learnosity docs. For the same reason, some **verification steps are differential** — they ask you to load the editor twice, once with the key omitted, because under fail-open semantics simply observing the behaviour you wanted proves nothing.
+**The recipe states how sure it is, and you must not upgrade it.** The Author API **fails open on
+`config`**: an unrecognized key is silently ignored — the editor still initializes, `readyListener`
+still fires, and the page looks correct while enforcing nothing.
+
+What that means in practice differs by property. **`question-type-groups` is enforced** — restricting
+the picker to named question-type groups was verified differentially against the live API, and the
+recipe states it as fact. **`allow-widgets` is not**: it names finer-grained question types, and no
+confirmed config key restricts at that granularity, so the recipe carries it as intent plus a check.
+Ask for `question-type-groups` when a client wants authors limited to particular kinds of question;
+`allow-widgets` alone changes nothing in the editor, and the compiler will say so.
+
+For the same fail-open reason, some **verification steps are differential** — they ask you to load
+the editor twice, once with the key omitted, because simply observing the behaviour you wanted
+proves nothing. That is not pedantry: the widget-type restriction was misread as broken for exactly
+this reason, because a config that *added* a group left the picker looking untouched.
 
 ## Workflow
 
@@ -34,11 +48,16 @@ Everything is expressed in natural language — the generator writes the DSL. Gi
 - **The serving domain** — the signature binds to it; a mismatch is the #1 401.
 - **The author's user id** — recorded in the item-bank audit trail.
 - For editing, **the item/activity reference**.
-- Optionally: **which question types authors may use**, editor options (edit/delete widgets, tags, dynamic content, shared passage), a **specific item bank**, container sizing.
+- **Which kinds of question authors may add** — say it plainly ("only multiple choice and cloze") and the design will set `question-type-groups`, the one restriction Learnosity enforces.
+- Optionally: the specific question types intended, editor options (edit/delete widgets, tags, dynamic content, shared passage), a **specific item bank**, container sizing.
 
 The compiler validates each property, so under-specified or inconsistent designs come back as clear steering warnings to refine.
 
-**A design being expressible is not a promise that Learnosity enforces it.** `allow-widgets` and the widget edit/delete permissions are all part of the design language, but their Author API config bindings are **unconfirmed** — the documented widget-type path was tested against the live API and restricts nothing. Ask for them; the recipe will carry them as *intent* plus a check that can falsify them. Do not promise the user a restriction that has not been observed in a running editor.
+**A design being expressible is not a promise that Learnosity enforces it.** `question-type-groups`
+is verified and may be promised. `allow-widgets` (question types) and the widget edit/delete
+permissions are expressible but their config bindings are **unconfirmed** — ask for them, and the
+recipe carries them as *intent* plus a check that can falsify them. Do not promise a restriction
+that has not been observed in a running editor.
 
 ## Out of scope
 

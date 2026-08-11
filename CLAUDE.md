@@ -41,7 +41,7 @@ Learnosity API requests, and does not emit runnable host-language code. The comp
 a normalized design plus `warnings`; it is *not* the deliverable. The deliverable is the recipe.
 
 **Coverage:** all four Author API views are modeled — 193 options (item_edit 49, item_list 19,
-activity_edit 102, activity_list 16, plus 7 section options), every emitted path cross-checked
+activity_edit 102, activity_list 16, plus 7 section options, and top-level `question-type-groups`), every emitted path cross-checked
 against Learnosity's published reference. Left out deliberately: `player_templates` (out of
 scope — it is Assess API config passed through, see `scope.json`), `item_search.item_banks.filter`
 (needs recursive record schemas), and `item_title` (deprecated by Learnosity).
@@ -227,13 +227,22 @@ exist. Do not soften them without new evidence:
 - **The Author API fails open on `config`.** An unrecognized key is silently ignored — the
   editor still initializes, `readyListener` still fires, and the page looks correct while
   enforcing nothing. A wrong config path is therefore *worse* than an acknowledged unknown.
-- **Widget-type restriction has no confirmed config binding.** The previously-documented
-  `config.dependencies.question_editor_api.init_options.widgetTypes` was tested and restricts
-  nothing — and does not appear in the current reference at all. `config.widget_templates.widget_types`
-  is documented as `{default, show}` (which tile view opens, whether the buttons show), so it was
-  never a restriction key. `...init_options.question_type_groups` was tried without effect, though
-  the reference documents a `template_references` field on it that has not been tested. The recipe must name the intended types, state the binding is
-  unconfirmed, and carry the restriction as a verification step — never emit a guessed path.
+- **The picker restriction IS verified, at GROUP granularity.**
+  `config.dependencies.question_editor_api.init_options.question_type_groups` takes
+  `{reference, name, template_references?}` entries. An existing reference overrides that group's
+  templates; `[]` removes the group; omitting the key leaves it whole; a **new** reference ADDS a
+  group. So restricting means overriding all ten (`mcq` `cloze` `match` `writespeak` `highlight`
+  `math` `graph` `chart` `chemistry` `other`) — which `question-type-groups` emits. Measured
+  differentially: control 10 groups/51 templates → restricted to two groups, 2 kept whole = 13
+  templates. The earlier "no effect" reading came from supplying a *new* reference, which is
+  additive: the config was in force and the picker looked untouched. Only a control comparison
+  separates "ignored" from "additive".
+- **Question TYPES are a separate taxonomy and are not restrictable.** `allow-widgets` names types
+  (`mcq`, `clozetext`); the mechanism selects groups and templates, and one group holds several
+  types. It stays design intent, and the compiler warns when it appears without
+  `question-type-groups`. Never emit `init_options.widgetTypes` (no effect, absent from the current
+  reference) or `config.widget_templates.widget_types` (documented `{default, show}` — never a
+  restriction key).
 - **Because of fail-open, any check on config-driven behaviour must be differential** — a
   control run with the key omitted — *including* enabling keys, not just restricting ones.
   "Confirm editing works" passes whether or not `edit: true` took effect.

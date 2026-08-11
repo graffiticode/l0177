@@ -35,7 +35,7 @@ different Learnosity node in `item-edit` than in `item-list`, and the shared nam
 
 | Context | Properties |
 | :------ | :--------- |
-| top-level (`author-embed`) | `domain`(str, req) · `user-id`(str, req) · `user-email` · `user-firstname` · `user-lastname` · `reference`(str) · `organisation-id`(num) · `allow-widgets`(tag list) |
+| top-level (`author-embed`) | `domain`(str, req) · `user-id`(str, req) · `user-email` · `user-firstname` · `user-lastname` · `reference`(str) · `organisation-id`(num) · `question-type-groups`(group tag list — the enforced restriction) · `allow-widgets`(widget tag list — intent only) |
 | `item-edit` › `item` | `answers` `back` `columns` `dynamic-content` `dynamic-image-tag` `enable-audio-recording` `scoring` `shared-passage` `status` `tabs` `actions-show` `popup-content-enable` `math-hints-generation-enable` (bool) · `reference-show` `reference-edit` (bool) · `reference-prefix`(str) · `title-show` `title-edit` `title-mandatory` (bool) · `tags-show` `tags-edit` (bool) · `save-show` `save-persist` `save-restricted-tags-allow-save` (bool) · `save-restricted-tags-all` `save-restricted-tags-either` (tag list) · `duplicate-show` `duplicate-shared-passages` (bool) · `mode-show`(bool) · `mode-default`(`"edit"`/`"preview"`) · `details-{acknowledgements,description,difficulty,note,scoring-type,source,status}-{show,edit}` (bool) |
 | `item-edit` (view-level) | `tags-on-create`(tag list) |
 | `item-edit` › `widget` | `edit` `delete` (bool) |
@@ -63,6 +63,13 @@ leaf name is already taken: `filter-restricted` and `toolbar-add` (a bare `filte
 `settings` an `item-edit` member). A keyword carries one arity and one meaning across
 the dialect, so members and properties share a single namespace.
 
+## Question-type group tags (UPPERCASE)
+
+`MCQ`, `CLOZE`, `MATCH`, `WRITE-SPEAK`, `HIGHLIGHT`, `MATH`, `GRAPH`, `CHART`,
+`CHEMISTRY`, `OTHER` — the ten panes of the editor's widget picker, and the only
+granularity at which the Author API is confirmed to restrict what authors may add.
+`question-type-groups [MCQ CLOZE]` keeps those two groups and removes the other eight.
+
 ## Widget-type tags (UPPERCASE)
 
 `MCQ`, `SHORT-TEXT`, `LONG-TEXT`, `PLAIN-TEXT`, `CLOZE-TEXT`, `CLOZE-ASSOCIATION`,
@@ -82,6 +89,7 @@ author-embed
   domain "lms.example.edu"
   user-id "u123"
   reference "algebra-item-1"
+  question-type-groups [MCQ CLOZE]
   allow-widgets [MCQ CLOZE-TEXT]
   item-edit [
     item back true scoring true reference-prefix "LEAR_" {}

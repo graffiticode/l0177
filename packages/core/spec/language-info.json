@@ -1,6 +1,6 @@
 {
   "id": "0177",
-  "description": "Produces developer integration recipes for the Learnosity Author API. The client describes an integration design — which authoring experience to embed (item editor, item browser, activity editor, activity list) and how it's configured (allowed widget types, editor options, item bank) — and L0177 validates it, flags holes (missing required properties like the serving domain, the author user id, or the item reference) as steering warnings, and via get_spec returns a host-language-neutral recipe: goal, preconditions, procedure, gotchas, and runnable verification steps. It does NOT author item content (that is L0176) and does NOT emit runnable code.",
+  "description": "Produces developer integration recipes for the Learnosity Author API. The client describes an integration design \u2014 which authoring experience to embed (item editor, item browser, activity editor, activity list) and how it's configured (allowed widget types, editor options, item bank) \u2014 and L0177 validates it, flags holes (missing required properties like the serving domain, the author user id, or the item reference) as steering warnings, and via get_spec returns a host-language-neutral recipe: goal, preconditions, procedure, gotchas, and runnable verification steps. It does NOT author item content (that is L0176) and does NOT emit runnable code.",
   "supported_item_types": [
     "item-edit",
     "item-list",
@@ -11,7 +11,7 @@
     {
       "prompt": "How do I embed the Learnosity item editor in my LMS for author u123 on lms.acme.edu, allowing only MCQ and cloze questions?",
       "produces": "item-edit",
-      "notes": "Names the experience (item editor), the serving domain, the author identity, and restricts widget types — a well-specified design with few holes."
+      "notes": "Names the experience (item editor), the serving domain, the author identity, and restricts what authors may add \u2014 which becomes question-type-groups, the one restriction the Author API is confirmed to enforce."
     },
     {
       "prompt": "I want to embed a Learnosity item browser so my authors can find and open existing items.",
@@ -26,7 +26,7 @@
     {
       "prompt": "Let authors edit item algebra-item-1 but not delete widgets, restricted to short text and formula questions.",
       "produces": "item-edit",
-      "notes": "Sets a reference, a widget permission (no delete), and an allow-widgets restriction — the recipe's verification checks each."
+      "notes": "Sets a reference, a widget permission (no delete), and limits the question types offered \u2014 the recipe's verification checks each, differentially."
     }
   ]
 }

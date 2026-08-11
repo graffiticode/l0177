@@ -25,7 +25,8 @@ export const TOK = (kw: string) => kw.toUpperCase().replace(/-/g, "_");
 // Value types a field may declare.
 //   boolean | number | string | strings (array of strings) | widgets (widget-type
 //   tag list) | tags (Learnosity TagsV2: records of {type, name?}) | records (a list
-//   of records validated against a schema) | unmodeled (documented, deliberately not
+//   of records validated against a schema) | groups (question-type picker groups, the
+//   granularity Learnosity restricts at) | unmodeled (documented, deliberately not
 //   modeled — reported as such rather than as a typo)
 //
 // The optional third element is a per-type CONSTRAINT: the accepted values for
@@ -436,6 +437,11 @@ export const TOPLEVEL: Record<string, [string | null, string]> = {
   "reference": ["reference", "string"],
   "organisation-id": ["organisation_id", "number"],
   "allow-widgets": [null, "widgets"],
+  // The one restriction Learnosity actually enforces, and the only top-level property
+  // with a config (rather than request) path.
+  "question-type-groups": [
+    "config.dependencies.question_editor_api.init_options.question_type_groups", "groups",
+  ],
 };
 
 // --- derived: everything the lexicon and compiler need ---
@@ -457,6 +463,24 @@ export const PROPERTIES: string[] = [
     ]),
   ]),
 ];
+
+// Question-type GROUPS — the ten panes of the editor's widget picker, and the only
+// granularity at which Learnosity actually restricts what an author may add. Verified
+// differentially against the live Author API (see instructions.md): overriding a group
+// reference with an empty `template_references` removes that group, and overriding it
+// with the key omitted leaves it whole. Restricting therefore means overriding all ten.
+export const GROUP_TAGS: Record<string, string> = {
+  "MCQ": "mcq",
+  "CLOZE": "cloze",
+  "MATCH": "match",
+  "WRITE-SPEAK": "writespeak",
+  "HIGHLIGHT": "highlight",
+  "MATH": "math",
+  "GRAPH": "graph",
+  "CHART": "chart",
+  "CHEMISTRY": "chemistry",
+  "OTHER": "other",
+};
 
 // Enum values are UPPERCASE-kebab TAG tokens (never collide with lowercase-kebab
 // functions). Widget-type tags map to Learnosity's widget-type strings.

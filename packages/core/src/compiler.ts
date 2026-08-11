@@ -57,6 +57,40 @@ function validateProp(name: string, type: string, value: any, options: any, valu
     }
     return mapped;
   }
+  if (type === "tags") {
+    // Learnosity's TagsV2: a list of {type, name?} where name is one string or several.
+    // Written as gc records so the design mirrors the payload — `[{type: "Grade", name: "4"}]`
+    // — rather than inventing a constructor that would have to be kept in step with it.
+    // Unknown keys are dropped, not passed on: the API fails open, so a misspelt key would
+    // ride along invisibly and silently narrow nothing.
+    const list = Array.isArray(value) ? value : value == null ? [] : [value];
+    const out: any[] = [];
+    for (const t of list) {
+      if (!t || typeof t !== "object" || Array.isArray(t)) {
+        pushWarn(options, `${name}: each tag must be a record like {type: "Grade", name: "4"}.`);
+        continue;
+      }
+      if (typeof t.type !== "string" || t.type.trim() === "") {
+        pushWarn(options, `${name}: every tag needs a "type" string — e.g. {type: "Grade", name: "4"}.`);
+        continue;
+      }
+      const nm = t.name;
+      const nameOk = nm === undefined
+        || typeof nm === "string"
+        || (Array.isArray(nm) && nm.every((s: any) => typeof s === "string"));
+      if (!nameOk) {
+        pushWarn(options, `${name}: a tag's "name" must be a string or a list of strings.`);
+        continue;
+      }
+      for (const k of Object.keys(t)) {
+        if (k !== "type" && k !== "name") {
+          pushWarn(options, `${name}: "${k}" isn't part of a tag — a tag is {type, name}; "name" is optional and matches every name when omitted.`);
+        }
+      }
+      out.push(nm === undefined ? { type: t.type } : { type: t.type, name: nm });
+    }
+    return out;
+  }
   if (type === "strings") {
     const list = Array.isArray(value) ? value : value == null ? [] : [value];
     if (!list.every((s) => typeof s === "string")) pushWarn(options, `${name} must be a list of strings.`);

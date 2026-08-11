@@ -23,7 +23,8 @@
 export const TOK = (kw: string) => kw.toUpperCase().replace(/-/g, "_");
 
 // Value types a field may declare.
-//   boolean | number | string | strings (array of strings) | widgets (tag list)
+//   boolean | number | string | strings (array of strings) | widgets (widget-type
+//   tag list) | tags (Learnosity TagsV2: records of {type, name?})
 // An optional third element enumerates the accepted values. Learnosity type-checks
 // almost nothing and ignores what it doesn't recognise, so an out-of-range enum
 // value is exactly the kind of mistake that leaves an editor looking configured
@@ -46,7 +47,9 @@ export const HEAD = "author-embed";
 export const VIEWS: Record<string, View> = {
   "item-edit": {
     mode: "item_edit",
-    view: {},
+    view: {
+      "tags-on-create": ["tags_on_create", "tags"],
+    },
     members: {
       item: {
         path: "item",
@@ -96,6 +99,11 @@ export const VIEWS: Record<string, View> = {
           // item.save
           "save-show": ["save.show", "boolean"],
           "save-persist": ["save.persist", "boolean"],
+          // save.restricted_tags — block saving items carrying these tags. `allow-save`
+          // only bites when one of the two lists is set, so it belongs with them.
+          "save-restricted-tags-all": ["save.restricted_tags.all", "tags"],
+          "save-restricted-tags-either": ["save.restricted_tags.either", "tags"],
+          "save-restricted-tags-allow-save": ["save.restricted_tags.allow_save", "boolean"],
           // item.tags
           "tags-show": ["tags.show", "boolean"],
           "tags-edit": ["tags.edit", "boolean"],
@@ -151,6 +159,9 @@ export const VIEWS: Record<string, View> = {
           "current-user": ["current_user", "boolean"],
           "created-by": ["created_by", "strings"],
           "status": ["status", "strings", ["published", "unpublished", "archived"]],
+          "tags-all": ["tags.all", "tags"],
+          "tags-either": ["tags.either", "tags"],
+          "tags-none": ["tags.none", "tags"],
           "allow-filtered-tags-overwrite": ["tags.allow_filtered_tags_overwrite", "boolean"],
         },
       },
@@ -182,15 +193,16 @@ export const VIEWS: Record<string, View> = {
   // is already an item-edit member. Member and property keywords share ONE namespace
   // with one arity each — see the assertion in lexicon.ts.
   //
-  // Not modeled, pending a value type for tag lists and object arrays: tags_on_create,
-  // player_templates, item_search.item_banks, save.restricted_tags.{all,either}, and
-  // item_search.filter.restricted.tags. item_title is skipped as deprecated — the
-  // reference directs callers to activity_edit.item.title instead.
+  // Not modeled, pending a value type for object arrays: player_templates
+  // (array[PlayerTemplateObject]) and item_search.item_banks (array[ItemBankDefinition]).
+  // item_title is skipped as deprecated — the reference directs callers to
+  // activity_edit.item.title instead.
   "activity-edit": {
     mode: "activity_edit",
     view: {
       "activity-preview-item-reference-show": ["activity_preview.item.reference.show", "boolean"],
       "adaptive-fields-show": ["adaptive_fields.show", "boolean"],
+      "tags-on-create": ["tags_on_create", "tags"],
       "annotations-enable": ["annotations.enable", "boolean"],
       "back": ["back", "boolean"],
       "customize-presets-enable": ["customize_presets.enable", "boolean"],
@@ -242,6 +254,9 @@ export const VIEWS: Record<string, View> = {
       "item-search": { path: "item_search", fields: {
         "back": ["back", "boolean"],
         "filter-restricted-created-by": ["filter.restricted.created_by", "strings"],
+        "filter-restricted-tags-all": ["filter.restricted.tags.all", "tags"],
+        "filter-restricted-tags-either": ["filter.restricted.tags.either", "tags"],
+        "filter-restricted-tags-none": ["filter.restricted.tags.none", "tags"],
         "filter-restricted-current-user": ["filter.restricted.current_user", "boolean"],
         "limit": ["limit", "number"],
         "show": ["show", "boolean"],
@@ -298,6 +313,8 @@ export const VIEWS: Record<string, View> = {
       } },
       "activity-edit-save": { path: "save", fields: {
         "persist": ["persist", "boolean"],
+        "restricted-tags-all": ["restricted_tags.all", "tags"],
+        "restricted-tags-either": ["restricted_tags.either", "tags"],
         "restricted-tags-allow-save": ["restricted_tags.allow_save", "boolean"],
         "show": ["show", "boolean"],
       } },
@@ -318,7 +335,6 @@ export const VIEWS: Record<string, View> = {
   // Same word, same view, different node — exactly what the view/member-scoped registry
   // exists to keep straight.
   //
-  // Not modeled: filter.restricted.tags.none (array[TagsV2]), pending a tag-list type.
   "activity-list": {
     mode: "activity_list",
     view: {
@@ -335,6 +351,9 @@ export const VIEWS: Record<string, View> = {
           "current-user": ["current_user", "boolean"],
           "created-by": ["created_by", "strings"],
           "status": ["status", "strings", ["published", "unpublished", "archived"]],
+          "tags-all": ["tags.all", "tags"],
+          "tags-either": ["tags.either", "tags"],
+          "tags-none": ["tags.none", "tags"],
         },
       },
       toolbar: {

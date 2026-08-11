@@ -338,6 +338,54 @@ describe("activity-list vocabulary", () => {
   });
 });
 
+describe("tag lists", () => {
+  // Learnosity's TagsV2 is a list of {type, name?}. Designs write gc records so the
+  // shape mirrors the payload, which needs no new keywords at all.
+  test("a tag list compiles, with name as one string, several, or omitted", async () => {
+    const out = await compile(`author-embed domain "d" user-id "u" organisation-id 1 item-list [
+      filter-restricted tags-all [{type: "Grade", name: "4"} {type: "Subject", name: ["Math" "Science"]} {type: "Course"}] {}
+    ] {}..`);
+    expect(out.warnings).toEqual([]);
+    expect(out.config["filter-restricted"]["tags-all"]).toEqual([
+      { type: "Grade", name: "4" },
+      { type: "Subject", name: ["Math", "Science"] },
+      { type: "Course" }, // no name -> matches every name of that type
+    ]);
+    expect(out.paths["config.filter-restricted.tags-all"])
+      .toBe("config.item_list.filter.restricted.tags.all");
+  });
+
+  test("a tag without a type is dropped, not sent", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" organisation-id 1 item-list [ filter-restricted tags-none [{name: "4"}] {} ] {}..');
+    expect(out.config["filter-restricted"]["tags-none"]).toEqual([]);
+    expect(hasWarning(out, 'every tag needs a "type" string')).toBe(true);
+  });
+
+  // The API fails open, so an unrecognised key would ride along invisibly.
+  test("a stray key is stripped while the tag itself survives", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" organisation-id 1 item-list [ filter-restricted tags-either [{type: "Grade", name: "4", colour: "red"}] {} ] {}..');
+    expect(out.config["filter-restricted"]["tags-either"]).toEqual([{ type: "Grade", name: "4" }]);
+    expect(hasWarning(out, `"colour" isn't part of a tag`)).toBe(true);
+  });
+
+  test("a malformed name warns instead of reaching Learnosity", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" organisation-id 1 item-list [ filter-restricted tags-all [{type: "Grade", name: 4}] {} ] {}..');
+    expect(hasWarning(out, `a tag's "name" must be a string or a list of strings`)).toBe(true);
+  });
+
+  test("tag lists reach every view that documents them", async () => {
+    const ie = await compile('author-embed domain "d" user-id "u" reference "r" organisation-id 1 allow-widgets [MCQ] item-edit [ item save-restricted-tags-all [{type: "Status", name: "draft"}] {} tags-on-create [{type: "Subject", name: "Math"}] {} ] {}..');
+    expect(ie.warnings).toEqual([]);
+    expect(ie.paths["config.item.save-restricted-tags-all"])
+      .toBe("config.item_edit.item.save.restricted_tags.all");
+    expect(ie.paths["config.tags-on-create"]).toBe("config.item_edit.tags_on_create");
+
+    const al = await compile('author-embed domain "d" user-id "u" organisation-id 1 activity-list [ filter-restricted tags-none [{type: "Grade", name: "6"}] {} ] {}..');
+    expect(al.paths["config.filter-restricted.tags-none"])
+      .toBe("config.activity_list.filter.restricted.tags.none");
+  });
+});
+
 describe("no keyword shadows the inherited L0000 vocabulary", () => {
   // `filter.restricted` and `toolbar.add` are named `filter-restricted` and
   // `toolbar-add` precisely so that base `filter` and `add` survive. Assert the

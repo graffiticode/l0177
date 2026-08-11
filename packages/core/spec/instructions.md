@@ -27,6 +27,11 @@ Uniform rules:
 - **Views** and **sections** are arity-2. A **view** takes a `[list]` of members.
 - **A bare property chain inside a view's list sets that view's own options** — `limit 25 {}` is not a member, it sets `config.item_list.limit`. Members configure a node *inside* the view; a bare chain configures the view itself.
 - **Widget-type values are UPPERCASE-kebab tags** (`MCQ`, `CLOZE-TEXT`), never quoted strings.
+- **Content tags are records**, written the way Learnosity receives them:
+  `[{type: "Grade", name: "4"} {type: "Subject", name: ["Math" "Science"]} {type: "Course"}]`.
+  `type` is required; `name` takes one string or several, and omitting it matches every name of
+  that type. A tag missing its `type` is dropped and any other key is stripped — under fail-open
+  semantics a misspelt key would otherwise ride along and silently narrow nothing.
 - **Smart defaults**: everything is optional; `item {}` is a fully-defaulted item. Write only what you change.
 
 ## The view selects the mode (one per program)
@@ -51,24 +56,25 @@ the (view, member) context where Learnosity actually defines it:
 
 | View | Member | Properties |
 | :--- | :----- | :--------- |
-| `item-edit` | `item` | **panes/behaviour:** `answers` `back` `columns` `dynamic-content` `dynamic-image-tag` `enable-audio-recording` `scoring` `shared-passage` `status` `tabs` `actions-show` `popup-content-enable` `math-hints-generation-enable` · **reference:** `reference-show` `reference-edit` · `reference-prefix`(str) · **title:** `title-show` `title-edit` `title-mandatory` · **tags:** `tags-show` `tags-edit` · **save:** `save-show` `save-persist` · **duplicate:** `duplicate-show` `duplicate-shared-passages` · **editor mode:** `mode-show` · `mode-default`(`"edit"`\|`"preview"`) · **metadata pane** (each an independent show/edit pair): `details-acknowledgements-*` `details-description-*` `details-difficulty-*` `details-note-*` `details-scoring-type-*` `details-source-*` `details-status-*` |
+| `item-edit` | `item` | **panes/behaviour:** `answers` `back` `columns` `dynamic-content` `dynamic-image-tag` `enable-audio-recording` `scoring` `shared-passage` `status` `tabs` `actions-show` `popup-content-enable` `math-hints-generation-enable` · **reference:** `reference-show` `reference-edit` · `reference-prefix`(str) · **title:** `title-show` `title-edit` `title-mandatory` · **tags:** `tags-show` `tags-edit` · **save:** `save-show` `save-persist` · `save-restricted-tags-all` `save-restricted-tags-either`(tag list) · `save-restricted-tags-allow-save` · **duplicate:** `duplicate-show` `duplicate-shared-passages` · **editor mode:** `mode-show` · `mode-default`(`"edit"`\|`"preview"`) · **metadata pane** (each an independent show/edit pair): `details-acknowledgements-*` `details-description-*` `details-difficulty-*` `details-note-*` `details-scoring-type-*` `details-source-*` `details-status-*` |
+| `item-edit` | *(view-level)* | `tags-on-create`(tag list) |
 | `item-edit` | `widget` | `edit` `delete` |
 | `item-edit` | `settings` | `show` `full-height` |
 | `item-list` | `item` | `url`(str, must contain `:reference`) · `enable-selection` · `status` · `title-show` `title-show-reference` |
-| `item-list` | `filter-restricted` | `current-user`(bool) · `created-by`(list of str) · `status`(list of `"published"`/`"unpublished"`/`"archived"`) · `allow-filtered-tags-overwrite`(bool) |
+| `item-list` | `filter-restricted` | `current-user`(bool) · `created-by`(list of str) · `status`(list of `"published"`/`"unpublished"`/`"archived"`) · `tags-all` `tags-either` `tags-none`(tag list) · `allow-filtered-tags-overwrite`(bool) |
 | `item-list` | `toolbar` | `toolbar-add` `search-show` `search-status` `search-tags-show` `search-widget-type` (bool) · `search-controls`(list of str) |
 | `item-list` | *(view-level)* | `limit`(num, 1–50) |
 | `activity-edit` | `item` | `add-show` `edit-allow` `status-show` `title-show` `title-show-reference` `custom-points-toggle-show` `custom-points-toggle-default-checked` |
-| `activity-edit` | `item-search` | `show` `back` `sort` `limit` · `title-show` `title-show-reference` · `filter-restricted-current-user` · `filter-restricted-created-by`(str list) · `toolbar-search-show` · `toolbar-search-controls`(str list) |
+| `activity-edit` | `item-search` | `show` `back` `sort` `limit` · `title-show` `title-show-reference` · `filter-restricted-current-user` · `filter-restricted-created-by`(str list) · `filter-restricted-tags-all` `filter-restricted-tags-either` `filter-restricted-tags-none`(tag list) · `toolbar-search-show` · `toolbar-search-controls`(str list) |
 | `activity-edit` | `player-playback` | `show` · and `show`/`edit` pairs for `distractor-rationale-*` `distractor-rationale-response-level-*` `scroll-to-top-*` `scrolling-indicator-*` `shuffle-items-*` `skip-submit-confirmation-*` `submit-criteria-*` `warning-on-change-*` `show-acknowledgements-*` |
 | `activity-edit` | `player-time` | `show` · `show`/`edit` pairs for `auto-save-*` `idle-timeout-*` `limit-type-*` `warning-time-*` · `reading-mode-goto-first-item-on-reading-time-completion-show` |
 | `activity-edit` | `player-administration` | `show` · `show`/`edit` pairs for `show-exit-*` `show-extend-*` `show-save-*` |
 | `activity-edit` | `player-text` `player-scoring` `duplicate` `title` | small panes — `show`, `edit`, `mandatory`, `font-size-*`, `client-side-scoring`, `deep-copy`, `duplicate-shared-passages` |
-| `activity-edit` | `activity-edit-save` | `show` `persist` `restricted-tags-allow-save` |
-| `activity-list` | `filter-restricted` | `current-user`(bool) · `created-by`(str list) · `status`(str list of `"published"`/`"unpublished"`/`"archived"`) |
+| `activity-edit` | `activity-edit-save` | `show` `persist` `restricted-tags-allow-save`(bool) · `restricted-tags-all` `restricted-tags-either`(tag list) |
+| `activity-list` | `filter-restricted` | `current-user`(bool) · `created-by`(str list) · `status`(str list of `"published"`/`"unpublished"`/`"archived"`) · `tags-all` `tags-either` `tags-none`(tag list) |
 | `activity-list` | `toolbar` | `toolbar-add` `add-adaptive` `add-branching` `add-random` `search` (bool) |
 | `activity-list` | *(view-level)* | `full-activity-json` `status` `title-show` `title-show-reference` (bool) · `limit`(num) |
-| `activity-edit` | *(view-level)* | `back` `details` `source` `status-show` `mode-show` · `mode-default`(`"edit"`/`"preview"`) · `reference-show` `reference-edit` · `tags-show` `tags-edit` · `description-show` `description-edit` · `difficulty-show` `difficulty-edit` · `adaptive-fields-show` `annotations-enable` `reporting-enable` `override-labels-enable` `customize-presets-enable` `resource-item-show` `player-template-builder-show` `intro-item-default-checked` `outro-item-default-checked` `activity-preview-item-reference-show` · `default-player-template`(str) · `enabled-player-templates`(str list) · `activity-edit-settings` |
+| `activity-edit` | *(view-level)* | `tags-on-create`(tag list) · `back` `details` `source` `status-show` `mode-show` · `mode-default`(`"edit"`/`"preview"`) · `reference-show` `reference-edit` · `tags-show` `tags-edit` · `description-show` `description-edit` · `difficulty-show` `difficulty-edit` · `adaptive-fields-show` `annotations-enable` `reporting-enable` `override-labels-enable` `customize-presets-enable` `resource-item-show` `player-template-builder-show` `intro-item-default-checked` `outro-item-default-checked` `activity-preview-item-reference-show` · `default-player-template`(str) · `enabled-player-templates`(str list) · `activity-edit-settings` |
 
 Names repeat across views on purpose, because they mirror Learnosity's own. `title-show` is
 `config.item_edit.item.title.show` in one view and `config.item_list.item.title.show` in another;

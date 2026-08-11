@@ -50,7 +50,7 @@ the (view, member) context where Learnosity actually defines it:
 
 | View | Member | Properties |
 | :--- | :----- | :--------- |
-| `item-edit` | `item` | `answers` `back` `columns` `dynamic-content` `dynamic-image-tag` `enable-audio-recording` `scoring` `shared-passage` `status` `tabs` · `reference-show` `reference-edit` · `reference-prefix`(str) · `tags-show` `tags-edit` |
+| `item-edit` | `item` | **panes/behaviour:** `answers` `back` `columns` `dynamic-content` `dynamic-image-tag` `enable-audio-recording` `scoring` `shared-passage` `status` `tabs` `actions-show` `popup-content-enable` `math-hints-generation-enable` · **reference:** `reference-show` `reference-edit` · `reference-prefix`(str) · **title:** `title-show` `title-edit` `title-mandatory` · **tags:** `tags-show` `tags-edit` · **save:** `save-show` `save-persist` · **duplicate:** `duplicate-show` `duplicate-shared-passages` · **editor mode:** `mode-show` · `mode-default`(`"edit"`\|`"preview"`) · **metadata pane** (each an independent show/edit pair): `details-acknowledgements-*` `details-description-*` `details-difficulty-*` `details-note-*` `details-scoring-type-*` `details-source-*` `details-status-*` |
 | `item-edit` | `widget` | `edit` `delete` |
 | `item-edit` | `settings` | `show` `full-height` |
 | `item-list` | `item` | `url`(str, must contain `:reference`) · `enable-selection` · `status` · `title-show` `title-show-reference` |
@@ -58,8 +58,11 @@ the (view, member) context where Learnosity actually defines it:
 | `item-list` | `toolbar` | `toolbar-add` `search-show` `search-status` `search-tags-show` `search-widget-type` (bool) · `search-controls`(list of str) |
 | `item-list` | *(view-level)* | `limit`(num, 1–50) |
 
+Note `title-show` appears in both `item` rows: it is `config.item_edit.item.title.show` in one view
+and `config.item_list.item.title.show` in the other. Read the resolved path from `data.paths`.
+
 Writing an item-edit property into an item-list `item` — `item-list [ item back true {} ]` — is
-**dropped with a warning**, not passed through. Emitting `config.item_list.item.back` would produce a
+**dropped with a warning**, not passed through, and so is the converse. Emitting `config.item_list.item.back` would produce a
 key Learnosity silently ignores, which under fail-open semantics is worse than an error.
 
 **Two keywords mirror more of their Learnosity path than the others**, because the bare leaf name

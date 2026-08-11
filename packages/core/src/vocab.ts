@@ -24,7 +24,11 @@ export const TOK = (kw: string) => kw.toUpperCase().replace(/-/g, "_");
 
 // Value types a field may declare.
 //   boolean | number | string | strings (array of strings) | widgets (tag list)
-export type Field = [string, string];
+// An optional third element enumerates the accepted values. Learnosity type-checks
+// almost nothing and ignores what it doesn't recognise, so an out-of-range enum
+// value is exactly the kind of mistake that leaves an editor looking configured
+// while doing nothing — worth catching here rather than in a running editor.
+export type Field = [string, string] | [string, string, string[]];
 export type Fields = Record<string, Field>;
 export type Member = { path: string; fields: Fields };
 export type View = {
@@ -48,6 +52,7 @@ export const VIEWS: Record<string, View> = {
       item: {
         path: "item",
         fields: {
+          // flat scalars
           "answers": ["answers", "boolean"],
           "back": ["back", "boolean"],
           "columns": ["columns", "boolean"],
@@ -58,11 +63,47 @@ export const VIEWS: Record<string, View> = {
           "shared-passage": ["shared_passage", "boolean"],
           "status": ["status", "boolean"],
           "tabs": ["tabs", "boolean"],
+          // item.actions
+          "actions-show": ["actions.show", "boolean"],
+          // item.details — each metadata field has an independent show/edit pair
+          "details-acknowledgements-show": ["details.acknowledgements.show", "boolean"],
+          "details-acknowledgements-edit": ["details.acknowledgements.edit", "boolean"],
+          "details-description-show": ["details.description.show", "boolean"],
+          "details-description-edit": ["details.description.edit", "boolean"],
+          "details-difficulty-show": ["details.difficulty.show", "boolean"],
+          "details-difficulty-edit": ["details.difficulty.edit", "boolean"],
+          "details-note-show": ["details.note.show", "boolean"],
+          "details-note-edit": ["details.note.edit", "boolean"],
+          "details-scoring-type-show": ["details.scoring_type.show", "boolean"],
+          "details-scoring-type-edit": ["details.scoring_type.edit", "boolean"],
+          "details-source-show": ["details.source.show", "boolean"],
+          "details-source-edit": ["details.source.edit", "boolean"],
+          "details-status-show": ["details.status.show", "boolean"],
+          "details-status-edit": ["details.status.edit", "boolean"],
+          // item.duplicate
+          "duplicate-show": ["duplicate.show", "boolean"],
+          "duplicate-shared-passages": ["duplicate.duplicate_shared_passages", "boolean"],
+          // item.math_hints_generation (v2025.2.LTS and later)
+          "math-hints-generation-enable": ["math_hints_generation.enable", "boolean"],
+          // item.mode — which editor mode opens by default, and whether the toggle shows
+          "mode-default": ["mode.default", "string", ["edit", "preview"]],
+          "mode-show": ["mode.show", "boolean"],
+          // item.popup_content
+          "popup-content-enable": ["popup_content.enable", "boolean"],
+          // item.reference
           "reference-show": ["reference.show", "boolean"],
           "reference-edit": ["reference.edit", "boolean"],
           "reference-prefix": ["reference.prefix", "string"],
+          // item.save
+          "save-show": ["save.show", "boolean"],
+          "save-persist": ["save.persist", "boolean"],
+          // item.tags
           "tags-show": ["tags.show", "boolean"],
           "tags-edit": ["tags.edit", "boolean"],
+          // item.title
+          "title-show": ["title.show", "boolean"],
+          "title-edit": ["title.edit", "boolean"],
+          "title-mandatory": ["title.mandatory", "boolean"],
         },
       },
       widget: {
@@ -111,7 +152,7 @@ export const VIEWS: Record<string, View> = {
         fields: {
           "current-user": ["current_user", "boolean"],
           "created-by": ["created_by", "strings"],
-          "status": ["status", "strings"],
+          "status": ["status", "strings", ["published", "unpublished", "archived"]],
           "allow-filtered-tags-overwrite": ["tags.allow_filtered_tags_overwrite", "boolean"],
         },
       },
@@ -125,7 +166,7 @@ export const VIEWS: Record<string, View> = {
           "search-status": ["search.status", "boolean"],
           "search-tags-show": ["search.tags.show", "boolean"],
           "search-widget-type": ["search.widget_type", "boolean"],
-          "search-controls": ["search.controls", "strings"],
+          "search-controls": ["search.controls", "strings", ["reference", "content", "title"]],
         },
       },
     },

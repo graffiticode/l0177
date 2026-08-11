@@ -123,6 +123,67 @@ describe("per-property + cross-context validation", () => {
   });
 });
 
+describe("item-edit vocabulary", () => {
+  test("the item editor's grouped nodes compile and resolve to their paths", async () => {
+    const out = await compile(`author-embed
+      domain "d" user-id "u" reference "r" organisation-id 1 allow-widgets [MCQ]
+      item-edit [
+        item actions-show true
+             details-difficulty-show true details-difficulty-edit false
+             details-scoring-type-show true
+             duplicate-show false duplicate-shared-passages true
+             math-hints-generation-enable true
+             mode-default "preview" mode-show false
+             popup-content-enable false
+             save-show true save-persist false
+             title-show true title-edit false title-mandatory true {}
+      ]
+      {}..`);
+    expect(out.warnings).toEqual([]);
+    expect(out.config.item).toMatchObject({
+      "actions-show": true, "mode-default": "preview", "title-mandatory": true, "save-persist": false,
+    });
+    expect(out.paths).toMatchObject({
+      "config.item.actions-show": "config.item_edit.item.actions.show",
+      "config.item.details-scoring-type-show": "config.item_edit.item.details.scoring_type.show",
+      "config.item.duplicate-shared-passages": "config.item_edit.item.duplicate.duplicate_shared_passages",
+      "config.item.math-hints-generation-enable": "config.item_edit.item.math_hints_generation.enable",
+      "config.item.title-mandatory": "config.item_edit.item.title.mandatory",
+    });
+  });
+
+  // title-show exists in BOTH item-edit's item and item-list's item, at different
+  // Learnosity paths. The view-scoped registry is what keeps them apart.
+  test("title-show resolves to a different path per view", async () => {
+    const edit = await compile('author-embed domain "d" user-id "u" reference "r" organisation-id 1 allow-widgets [MCQ] item-edit [ item title-show true {} ] {}..');
+    const list = await compile('author-embed domain "d" user-id "u" organisation-id 1 item-list [ item title-show true {} ] {}..');
+    expect(edit.paths["config.item.title-show"]).toBe("config.item_edit.item.title.show");
+    expect(list.paths["config.item.title-show"]).toBe("config.item_list.item.title.show");
+  });
+
+  test("item-list's fields are rejected by item-edit, the converse of the scoping bug", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" reference "r" organisation-id 1 allow-widgets [MCQ] item-edit [ item url "/x/:reference" enable-selection true {} ] {}..');
+    expect(out.config.item).toEqual({});
+    expect(hasWarning(out, `item: "url" isn't a valid item property`)).toBe(true);
+    expect(hasWarning(out, `item: "enable-selection" isn't a valid item property`)).toBe(true);
+  });
+});
+
+describe("enumerated values", () => {
+  test("an out-of-range enum warns rather than reaching Learnosity", async () => {
+    // The API ignores what it doesn't recognise, so a bad enum would otherwise
+    // produce an editor that looks configured and isn't.
+    const out = await compile('author-embed domain "d" user-id "u" reference "r" organisation-id 1 allow-widgets [MCQ] item-edit [ item mode-default "readonly" {} ] {}..');
+    expect(hasWarning(out, `mode-default: "readonly" isn't one of "edit", "preview"`)).toBe(true);
+  });
+
+  test("enum ranges apply elementwise to string lists", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" organisation-id 1 item-list [ filter-restricted status ["published" "retired"] {} ] {}..');
+    expect(hasWarning(out, `status: "retired" isn't one of "published", "unpublished", "archived"`)).toBe(true);
+    expect(hasWarning(out, `status: "published"`)).toBe(false); // valid members pass silently
+  });
+});
+
 describe("item-list vocabulary", () => {
   const LIST = `author-embed
     domain "lms.acme.edu" user-id "u123" organisation-id 7

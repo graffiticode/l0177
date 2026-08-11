@@ -43,7 +43,10 @@ const pushWarn = (options: any, w: string) => { (options.__warnings ||= []).push
 const recordPath = (options: any, from: string, to: string) => { (options.__paths ||= {})[from] = to; };
 
 // --- property value validation (called from the fold, which knows the type) ---
-function validateProp(name: string, type: string, value: any, options: any): any {
+function validateProp(name: string, type: string, value: any, options: any, values?: string[]): any {
+  const inRange = (v: any) => !values || values.includes(v);
+  const rangeWarn = (v: any) =>
+    pushWarn(options, `${name}: ${JSON.stringify(v)} isn't one of ${values!.map((s) => `"${s}"`).join(", ")}.`);
   if (type === "widgets") {
     const list = Array.isArray(value) ? value : value == null ? [] : [value];
     const mapped: string[] = [];
@@ -57,11 +60,13 @@ function validateProp(name: string, type: string, value: any, options: any): any
   if (type === "strings") {
     const list = Array.isArray(value) ? value : value == null ? [] : [value];
     if (!list.every((s) => typeof s === "string")) pushWarn(options, `${name} must be a list of strings.`);
+    else for (const s of list) if (!inRange(s)) rangeWarn(s);
     return list;
   }
   if (type === "boolean" && typeof value !== "boolean") pushWarn(options, `${name} must be true or false.`);
   else if (type === "number" && typeof value !== "number") pushWarn(options, `${name} must be a number.`);
   else if (type === "string" && typeof value !== "string") pushWarn(options, `${name} must be a string.`);
+  else if (type === "string" && !inRange(value)) rangeWarn(value);
   return value;
 }
 
@@ -81,8 +86,8 @@ function validateFields(
         (accepts.length ? `Accepts: ${accepts.join(", ")}.` : "It accepts no properties."));
       continue;
     }
-    const [path, type] = spec;
-    out[k] = validateProp(k, type, v, options);
+    const [path, type, values] = spec;
+    out[k] = validateProp(k, type, v, options, values);
     recordPath(options, `${outBase}.${k}`, `${lrnBase}.${path}`);
   }
   return out;

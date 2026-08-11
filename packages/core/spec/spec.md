@@ -33,7 +33,7 @@ different Learnosity node in `item-edit` than in `item-list`, and the shared nam
 | Context | Properties |
 | :------ | :--------- |
 | top-level (`author-embed`) | `domain`(str, req) · `user-id`(str, req) · `user-email` · `user-firstname` · `user-lastname` · `reference`(str) · `organisation-id`(num) · `allow-widgets`(tag list) |
-| `item-edit` › `item` | `answers` `back` `columns` `dynamic-content` `dynamic-image-tag` `enable-audio-recording` `scoring` `shared-passage` `status` `tabs` (bool) · `reference-show` `reference-edit` (bool) · `reference-prefix`(str) · `tags-show` `tags-edit`(bool) |
+| `item-edit` › `item` | `answers` `back` `columns` `dynamic-content` `dynamic-image-tag` `enable-audio-recording` `scoring` `shared-passage` `status` `tabs` `actions-show` `popup-content-enable` `math-hints-generation-enable` (bool) · `reference-show` `reference-edit` (bool) · `reference-prefix`(str) · `title-show` `title-edit` `title-mandatory` (bool) · `tags-show` `tags-edit` (bool) · `save-show` `save-persist` (bool) · `duplicate-show` `duplicate-shared-passages` (bool) · `mode-show`(bool) · `mode-default`(`"edit"`/`"preview"`) · `details-{acknowledgements,description,difficulty,note,scoring-type,source,status}-{show,edit}` (bool) |
 | `item-edit` › `widget` | `edit` `delete` (bool) |
 | `item-edit` › `settings` | `show` `full-height` (bool) |
 | `item-list` › `item` | `url`(str) · `enable-selection` `status` `title-show` `title-show-reference` (bool) |

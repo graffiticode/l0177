@@ -33,7 +33,6 @@ export type Fields = Record<string, Field>;
 export type Member = { path: string; fields: Fields };
 export type View = {
   mode: string;
-  modeled: boolean;
   view: Fields; // view-level scalars (config.<mode>.<field>)
   members: Record<string, Member>;
 };
@@ -42,11 +41,11 @@ export type View = {
 export const HEAD = "author-embed";
 
 // Views (arity-2, [members]) — exactly one per program selects the Learnosity mode.
-// An unmodeled view accepts any member and validates nothing, with a warning.
+// All four Author API views are modeled: a member or field a view doesn't define is
+// dropped with a warning, never passed through.
 export const VIEWS: Record<string, View> = {
   "item-edit": {
     mode: "item_edit",
-    modeled: true,
     view: {},
     members: {
       item: {
@@ -125,7 +124,6 @@ export const VIEWS: Record<string, View> = {
 
   "item-list": {
     mode: "item_list",
-    modeled: true,
     view: {
       "limit": ["limit", "number"],
     },
@@ -190,7 +188,6 @@ export const VIEWS: Record<string, View> = {
   // reference directs callers to activity_edit.item.title instead.
   "activity-edit": {
     mode: "activity_edit",
-    modeled: true,
     view: {
       "activity-preview-item-reference-show": ["activity_preview.item.reference.show", "boolean"],
       "adaptive-fields-show": ["adaptive_fields.show", "boolean"],
@@ -312,7 +309,48 @@ export const VIEWS: Record<string, View> = {
     },
   },
 
-  "activity-list": { mode: "activity_list", modeled: false, view: {}, members: {} },
+  // The activity browser. Shallow enough that only `filter.restricted` and `toolbar`
+  // earn members — and both keywords already exist from item-list, so this view adds
+  // no new member vocabulary at all, just fields scoped to it.
+  //
+  // Note `status` appears twice with different types: a boolean at view level (show the
+  // status column) and a list of states under filter-restricted (which states to list).
+  // Same word, same view, different node — exactly what the view/member-scoped registry
+  // exists to keep straight.
+  //
+  // Not modeled: filter.restricted.tags.none (array[TagsV2]), pending a tag-list type.
+  "activity-list": {
+    mode: "activity_list",
+    view: {
+      "full-activity-json": ["full_activity_json", "boolean"],
+      "limit": ["limit", "number"],
+      "status": ["status", "boolean"],
+      "title-show": ["title.show", "boolean"],
+      "title-show-reference": ["title.show_reference", "boolean"],
+    },
+    members: {
+      "filter-restricted": {
+        path: "filter.restricted",
+        fields: {
+          "current-user": ["current_user", "boolean"],
+          "created-by": ["created_by", "strings"],
+          "status": ["status", "strings", ["published", "unpublished", "archived"]],
+        },
+      },
+      toolbar: {
+        path: "toolbar",
+        fields: {
+          // `toolbar-add` elides less because a bare `add` would shadow L0000's
+          // arithmetic function; its siblings need no such treatment.
+          "toolbar-add": ["add", "boolean"],
+          "add-adaptive": ["add_adaptive", "boolean"],
+          "add-branching": ["add_branching", "boolean"],
+          "add-random": ["add_random", "boolean"],
+          "search": ["search", "boolean"],
+        },
+      },
+    },
+  },
 };
 
 // Sections (arity-2, a property sub-chain) at the top level of author-embed.

@@ -37,7 +37,8 @@ There is no in-UI view switching, so the view you use *is* the mode:
 - `activity-edit [ … ]` — the **Activity editor**. `reference` optional.
 - `activity-list [ … ]` — the **Activity browser/list**.
 
-(`activity-list` is not yet modeled; its members pass through with a note.)
+All four are modeled: a member or property a view doesn't define is dropped with a warning,
+never passed through.
 
 **Members are view-scoped, and so are their properties.** A member the view doesn't accept is
 **dropped with a warning** — Learnosity ignores it in that mode. Don't attach `widget`/`settings` to a
@@ -64,10 +65,16 @@ the (view, member) context where Learnosity actually defines it:
 | `activity-edit` | `player-administration` | `show` · `show`/`edit` pairs for `show-exit-*` `show-extend-*` `show-save-*` |
 | `activity-edit` | `player-text` `player-scoring` `duplicate` `title` | small panes — `show`, `edit`, `mandatory`, `font-size-*`, `client-side-scoring`, `deep-copy`, `duplicate-shared-passages` |
 | `activity-edit` | `activity-edit-save` | `show` `persist` `restricted-tags-allow-save` |
+| `activity-list` | `filter-restricted` | `current-user`(bool) · `created-by`(str list) · `status`(str list of `"published"`/`"unpublished"`/`"archived"`) |
+| `activity-list` | `toolbar` | `toolbar-add` `add-adaptive` `add-branching` `add-random` `search` (bool) |
+| `activity-list` | *(view-level)* | `full-activity-json` `status` `title-show` `title-show-reference` (bool) · `limit`(num) |
 | `activity-edit` | *(view-level)* | `back` `details` `source` `status-show` `mode-show` · `mode-default`(`"edit"`/`"preview"`) · `reference-show` `reference-edit` · `tags-show` `tags-edit` · `description-show` `description-edit` · `difficulty-show` `difficulty-edit` · `adaptive-fields-show` `annotations-enable` `reporting-enable` `override-labels-enable` `customize-presets-enable` `resource-item-show` `player-template-builder-show` `intro-item-default-checked` `outro-item-default-checked` `activity-preview-item-reference-show` · `default-player-template`(str) · `enabled-player-templates`(str list) · `activity-edit-settings` |
 
-Note `title-show` appears in both `item` rows: it is `config.item_edit.item.title.show` in one view
-and `config.item_list.item.title.show` in the other. Read the resolved path from `data.paths`.
+Names repeat across views on purpose, because they mirror Learnosity's own. `title-show` is
+`config.item_edit.item.title.show` in one view and `config.item_list.item.title.show` in another;
+`status` is a boolean at `activity-list`'s view level but a list of states under its
+`filter-restricted`. Always read the resolved path from `data.paths` rather than inferring it
+from the name.
 
 Writing an item-edit property into an item-list `item` — `item-list [ item back true {} ]` — is
 **dropped with a warning**, not passed through, and so is the converse. Emitting `config.item_list.item.back` would produce a

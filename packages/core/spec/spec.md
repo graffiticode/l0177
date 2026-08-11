@@ -44,6 +44,9 @@ different Learnosity node in `item-edit` than in `item-list`, and the shared nam
 | `activity-edit` › `item-search` | `show` `back` `sort` `filter-restricted-current-user` `toolbar-search-show` (bool) · `limit`(num) · `filter-restricted-created-by` `toolbar-search-controls` (str list) |
 | `activity-edit` › `player-playback` `player-time` `player-administration` `player-text` `player-scoring` | the assessment-player panes; each option is a `show`/`edit` pair, e.g. `limit-type-show` `limit-type-edit` |
 | `activity-edit` › `activity-edit-save` `duplicate` `title` | `show` `persist` `restricted-tags-allow-save` · `deep-copy` `duplicate-shared-passages` · `edit` `mandatory` |
+| `activity-list` › `filter-restricted` | `current-user`(bool) · `created-by` `status` (str list) |
+| `activity-list` › `toolbar` | `toolbar-add` `add-adaptive` `add-branching` `add-random` `search` (bool) |
+| `activity-list` (view-level) | `full-activity-json` `status` `title-show` `title-show-reference` (bool) · `limit`(num) |
 | `activity-edit` (view-level) | `back` `details` `source` `status-show` `mode-show` `reference-show` `reference-edit` `tags-show` `tags-edit` `description-*` `difficulty-*` `*-enable` `*-show` `*-default-checked` `activity-edit-settings` (bool) · `mode-default`(`"edit"`/`"preview"`) · `default-player-template`(str) · `enabled-player-templates`(str list) |
 | `container` | `height` `fixed-footer-height`(num) · `scroll-into-view-selector`(str) |
 | `widget-templates` | `back` `save` `require-validation` (bool) |

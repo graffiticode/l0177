@@ -46,9 +46,15 @@ describe("complete design + tags", () => {
   });
 
   test("each view function maps to its Learnosity mode", async () => {
-    const al = await compile('author-embed domain "d" user-id "u" activity-list [] {}..');
-    expect(al.mode).toBe("activity_list");
-    expect(hasWarning(al, "isn't fully modeled yet")).toBe(true);
+    for (const [fn, mode] of [
+      ["item-edit", "item_edit"], ["item-list", "item_list"],
+      ["activity-edit", "activity_edit"], ["activity-list", "activity_list"],
+    ]) {
+      const out = await compile(`author-embed domain "d" user-id "u" ${fn} [] {}..`);
+      expect(out.mode).toBe(mode);
+      // All four views are modeled now — none passes members through unvalidated.
+      expect(hasWarning(out, "isn't fully modeled yet")).toBe(false);
+    }
   });
 });
 
@@ -288,6 +294,47 @@ describe("activity-edit vocabulary", () => {
     expect(out.config.widget).toBeUndefined();
     expect(hasWarning(out, `activity-edit: "widget" isn't a member of this view`)).toBe(true);
     expect(hasWarning(out, `item: "scoring" isn't a valid item property`)).toBe(true);
+  });
+});
+
+describe("activity-list vocabulary", () => {
+  const LIST = `author-embed
+    domain "lms.acme.edu" user-id "u123" organisation-id 7
+    activity-list [
+      full-activity-json true limit 20 status true title-show true {}
+      filter-restricted current-user true status ["published"] created-by ["u1"] {}
+      toolbar toolbar-add true add-adaptive false add-random true search true {}
+    ]
+    {}..`;
+
+  test("the activity browser compiles clean and resolves its paths", async () => {
+    const out = await compile(LIST);
+    expect(out.mode).toBe("activity_list");
+    expect(out.warnings).toEqual([]);
+    expect(out.paths).toMatchObject({
+      "config.limit": "config.activity_list.limit",
+      "config.title-show": "config.activity_list.title.show",
+      "config.filter-restricted.created-by": "config.activity_list.filter.restricted.created_by",
+      "config.toolbar.toolbar-add": "config.activity_list.toolbar.add",
+      "config.toolbar.add-adaptive": "config.activity_list.toolbar.add_adaptive",
+    });
+  });
+
+  // `status` is a boolean at view level (show the column) and a list of states under
+  // filter-restricted (which to list) — the same word, in the same view, at two nodes.
+  test("status carries a different type at view level than under filter-restricted", async () => {
+    const out = await compile(LIST);
+    expect(out.config.status).toBe(true);
+    expect(out.config["filter-restricted"].status).toEqual(["published"]);
+    expect(out.paths["config.status"]).toBe("config.activity_list.status");
+    expect(out.paths["config.filter-restricted.status"])
+      .toBe("config.activity_list.filter.restricted.status");
+  });
+
+  test("item-list's toolbar fields don't leak into activity-list's", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" organisation-id 1 activity-list [ toolbar search-show true {} ] {}..');
+    expect(out.config.toolbar).toEqual({});
+    expect(hasWarning(out, `toolbar: "search-show" isn't a valid toolbar property`)).toBe(true);
   });
 });
 

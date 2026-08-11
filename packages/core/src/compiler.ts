@@ -224,25 +224,20 @@ for (const [view, spec] of Object.entries(VIEWS)) {
           if (!el || typeof el !== "object") continue;
           if (el.kind) {
             const member = spec.members[el.kind];
-            if (spec.modeled && !member) {
+            if (!member) {
               // A member the view doesn't accept is dropped, not passed through: folding it in
               // would emit config Learnosity ignores for this mode (e.g. widget in item_list).
               pushWarn(options, `${view}: "${el.kind}" isn't a member of this view — dropped. ${view} accepts: ${Object.keys(spec.members).join(", ")}.`);
               continue;
             }
-            config[el.kind] = member
-              ? validateFields(el.value, member.fields, el.kind, options,
-                `config.${el.kind}`, `config.${spec.mode}.${member.path}`)
-              : el.value;
+            config[el.kind] = validateFields(el.value, member.fields, el.kind, options,
+              `config.${el.kind}`, `config.${spec.mode}.${member.path}`);
           } else {
             // A bare property chain (not a member) sets the view's own scalars,
             // e.g. `limit 25 {}` -> config.item_list.limit.
-            Object.assign(config, spec.modeled
-              ? validateFields(el, spec.view, view, options, "config", `config.${spec.mode}`)
-              : el);
+            Object.assign(config, validateFields(el, spec.view, view, options, "config", `config.${spec.mode}`));
           }
         }
-        if (!spec.modeled) pushWarn(options, `the ${spec.mode} view isn't fully modeled yet — its members pass through with limited validation.`);
         const cont = toPlainObject(v1) || {};
         resume(([] as any[]).concat(e0 || [], e1 || []), { ...cont, mode: spec.mode, config });
       });

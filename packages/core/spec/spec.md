@@ -40,13 +40,21 @@ different Learnosity node in `item-edit` than in `item-list`, and the shared nam
 | `item-list` › `filter-restricted` | `current-user` `allow-filtered-tags-overwrite` (bool) · `created-by` `status` (str list) |
 | `item-list` › `toolbar` | `toolbar-add` `search-show` `search-status` `search-tags-show` `search-widget-type` (bool) · `search-controls`(str list) |
 | `item-list` (view-level) | `limit`(num) |
+| `activity-edit` › `item` | `add-show` `edit-allow` `status-show` `title-show` `title-show-reference` `custom-points-toggle-show` `custom-points-toggle-default-checked` (bool) |
+| `activity-edit` › `item-search` | `show` `back` `sort` `filter-restricted-current-user` `toolbar-search-show` (bool) · `limit`(num) · `filter-restricted-created-by` `toolbar-search-controls` (str list) |
+| `activity-edit` › `player-playback` `player-time` `player-administration` `player-text` `player-scoring` | the assessment-player panes; each option is a `show`/`edit` pair, e.g. `limit-type-show` `limit-type-edit` |
+| `activity-edit` › `activity-edit-save` `duplicate` `title` | `show` `persist` `restricted-tags-allow-save` · `deep-copy` `duplicate-shared-passages` · `edit` `mandatory` |
+| `activity-edit` (view-level) | `back` `details` `source` `status-show` `mode-show` `reference-show` `reference-edit` `tags-show` `tags-edit` `description-*` `difficulty-*` `*-enable` `*-show` `*-default-checked` `activity-edit-settings` (bool) · `mode-default`(`"edit"`/`"preview"`) · `default-player-template`(str) · `enabled-player-templates`(str list) |
 | `container` | `height` `fixed-footer-height`(num) · `scroll-into-view-selector`(str) |
 | `widget-templates` | `back` `save` `require-validation` (bool) |
 | `global` | `disable-onbeforeunload` (bool) |
 
-`filter-restricted` and `toolbar-add` mirror more of their Learnosity path
-(`filter.restricted`, `toolbar.add`) than the other keywords do, because a bare
-`filter` or `add` would shadow an inherited L0000 function.
+Four keywords mirror more of their Learnosity path than the rest, because the bare
+leaf name is already taken: `filter-restricted` and `toolbar-add` (a bare `filter` or
+`add` would shadow an inherited L0000 function), and `activity-edit-save` and
+`activity-edit-settings` (a bare `save` is a `widget-templates` property, a bare
+`settings` an `item-edit` member). A keyword carries one arity and one meaning across
+the dialect, so members and properties share a single namespace.
 
 ## Widget-type tags (UPPERCASE)
 

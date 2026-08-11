@@ -236,6 +236,61 @@ describe("item-list vocabulary", () => {
   });
 });
 
+describe("activity-edit vocabulary", () => {
+  const ACT = `author-embed
+    domain "lms.acme.edu" user-id "u123" reference "quiz-1" organisation-id 7 allow-widgets [MCQ]
+    activity-edit [
+      back true details true mode-default "edit" reference-show true status-show false {}
+      item add-show true edit-allow true title-show-reference false {}
+      item-search show true limit 25 sort true filter-restricted-current-user true {}
+      player-playback show true shuffle-items-show false distractor-rationale-show true {}
+      player-time show true limit-type-edit true auto-save-show true {}
+      player-administration show true show-exit-show false {}
+      activity-edit-save show true persist false {}
+      title show true mandatory true {}
+    ]
+    {}..`;
+
+  test("a broad activity-edit design compiles with no warnings", async () => {
+    const out = await compile(ACT);
+    expect(out.mode).toBe("activity_edit");
+    expect(out.complete).toBe(true);
+    expect(out.warnings).toEqual([]); // no longer "isn't fully modeled yet"
+    expect(out.config.back).toBe(true); // view-level scalars
+    expect(out.config["player-playback"]).toMatchObject({ show: true, "distractor-rationale-show": true });
+  });
+
+  test("paned members and view-level scalars resolve to their documented paths", async () => {
+    const out = await compile(ACT);
+    expect(out.paths).toMatchObject({
+      "config.back": "config.activity_edit.back",
+      "config.mode-default": "config.activity_edit.mode.default",
+      "config.status-show": "config.activity_edit.status.show",
+      "config.player-playback.distractor-rationale-show":
+        "config.activity_edit.player.playback.distractor_rationale.show",
+      "config.player-time.limit-type-edit": "config.activity_edit.player.time.limit_type.edit",
+      "config.item-search.filter-restricted-current-user":
+        "config.activity_edit.item_search.filter.restricted.current_user",
+    });
+  });
+
+  // Both names mirror the view segment because the bare word is taken elsewhere in the
+  // dialect: `save` is a widget-templates property, `settings` an item-edit member.
+  test("the two path-mirrored names map back to their plain Learnosity paths", async () => {
+    const out = await compile(ACT);
+    expect(out.paths["config.activity-edit-save.persist"]).toBe("config.activity_edit.save.persist");
+    const s = await compile('author-embed domain "d" user-id "u" organisation-id 1 activity-edit [ activity-edit-settings false {} ] {}..');
+    expect(s.paths["config.activity-edit-settings"]).toBe("config.activity_edit.settings");
+  });
+
+  test("item-edit's members and fields are rejected by activity-edit", async () => {
+    const out = await compile('author-embed domain "d" user-id "u" organisation-id 1 activity-edit [ widget edit true {} item scoring true {} ] {}..');
+    expect(out.config.widget).toBeUndefined();
+    expect(hasWarning(out, `activity-edit: "widget" isn't a member of this view`)).toBe(true);
+    expect(hasWarning(out, `item: "scoring" isn't a valid item property`)).toBe(true);
+  });
+});
+
 describe("no keyword shadows the inherited L0000 vocabulary", () => {
   // `filter.restricted` and `toolbar.add` are named `filter-restricted` and
   // `toolbar-add` precisely so that base `filter` and `add` survive. Assert the

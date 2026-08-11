@@ -37,7 +37,7 @@ There is no in-UI view switching, so the view you use *is* the mode:
 - `activity-edit [ … ]` — the **Activity editor**. `reference` optional.
 - `activity-list [ … ]` — the **Activity browser/list**.
 
-(`activity-edit`/`activity-list` are not yet modeled; their members pass through with a note.)
+(`activity-list` is not yet modeled; its members pass through with a note.)
 
 **Members are view-scoped, and so are their properties.** A member the view doesn't accept is
 **dropped with a warning** — Learnosity ignores it in that mode. Don't attach `widget`/`settings` to a
@@ -57,6 +57,14 @@ the (view, member) context where Learnosity actually defines it:
 | `item-list` | `filter-restricted` | `current-user`(bool) · `created-by`(list of str) · `status`(list of `"published"`/`"unpublished"`/`"archived"`) · `allow-filtered-tags-overwrite`(bool) |
 | `item-list` | `toolbar` | `toolbar-add` `search-show` `search-status` `search-tags-show` `search-widget-type` (bool) · `search-controls`(list of str) |
 | `item-list` | *(view-level)* | `limit`(num, 1–50) |
+| `activity-edit` | `item` | `add-show` `edit-allow` `status-show` `title-show` `title-show-reference` `custom-points-toggle-show` `custom-points-toggle-default-checked` |
+| `activity-edit` | `item-search` | `show` `back` `sort` `limit` · `title-show` `title-show-reference` · `filter-restricted-current-user` · `filter-restricted-created-by`(str list) · `toolbar-search-show` · `toolbar-search-controls`(str list) |
+| `activity-edit` | `player-playback` | `show` · and `show`/`edit` pairs for `distractor-rationale-*` `distractor-rationale-response-level-*` `scroll-to-top-*` `scrolling-indicator-*` `shuffle-items-*` `skip-submit-confirmation-*` `submit-criteria-*` `warning-on-change-*` `show-acknowledgements-*` |
+| `activity-edit` | `player-time` | `show` · `show`/`edit` pairs for `auto-save-*` `idle-timeout-*` `limit-type-*` `warning-time-*` · `reading-mode-goto-first-item-on-reading-time-completion-show` |
+| `activity-edit` | `player-administration` | `show` · `show`/`edit` pairs for `show-exit-*` `show-extend-*` `show-save-*` |
+| `activity-edit` | `player-text` `player-scoring` `duplicate` `title` | small panes — `show`, `edit`, `mandatory`, `font-size-*`, `client-side-scoring`, `deep-copy`, `duplicate-shared-passages` |
+| `activity-edit` | `activity-edit-save` | `show` `persist` `restricted-tags-allow-save` |
+| `activity-edit` | *(view-level)* | `back` `details` `source` `status-show` `mode-show` · `mode-default`(`"edit"`/`"preview"`) · `reference-show` `reference-edit` · `tags-show` `tags-edit` · `description-show` `description-edit` · `difficulty-show` `difficulty-edit` · `adaptive-fields-show` `annotations-enable` `reporting-enable` `override-labels-enable` `customize-presets-enable` `resource-item-show` `player-template-builder-show` `intro-item-default-checked` `outro-item-default-checked` `activity-preview-item-reference-show` · `default-player-template`(str) · `enabled-player-templates`(str list) · `activity-edit-settings` |
 
 Note `title-show` appears in both `item` rows: it is `config.item_edit.item.title.show` in one view
 and `config.item_list.item.title.show` in the other. Read the resolved path from `data.paths`.
@@ -65,11 +73,26 @@ Writing an item-edit property into an item-list `item` — `item-list [ item bac
 **dropped with a warning**, not passed through, and so is the converse. Emitting `config.item_list.item.back` would produce a
 key Learnosity silently ignores, which under fail-open semantics is worse than an error.
 
-**Two keywords mirror more of their Learnosity path than the others**, because the bare leaf name
-would shadow an inherited L0000 function: `filter-restricted` (for `config.item_list.filter.restricted`,
-since a bare `filter` would replace L0000's list `filter`) and `toolbar-add` (for
-`config.item_list.toolbar.add`, since `add` is L0000's arithmetic function). Nothing is invented — the
-name is simply less elided. Note this means `toolbar-add` appears inside the `toolbar` member.
+**Four keywords mirror more of their Learnosity path than the others.** A keyword carries one
+meaning across the whole dialect, so where a bare leaf name is already taken, the name simply
+elides less of its path. Nothing is invented:
+
+| Keyword | Learnosity path | Why not the bare name |
+| :------ | :-------------- | :-------------------- |
+| `filter-restricted` | `config.item_list.filter.restricted` | `filter` is L0000's list function |
+| `toolbar-add` | `config.item_list.toolbar.add` | `add` is L0000's arithmetic function |
+| `activity-edit-save` | `config.activity_edit.save` | `save` is a `widget-templates` property |
+| `activity-edit-settings` | `config.activity_edit.settings` | `settings` is an `item-edit` member |
+
+Note this means `toolbar-add` appears inside the `toolbar` member, which reads redundantly but
+keeps every keyword decodable on its own.
+
+**`activity-edit` is the deepest view**, so its members are cut where Learnosity panes the UI: the
+player settings split into `player-playback`, `player-time`, `player-administration`, `player-text`
+and `player-scoring`, while small nodes stay view-level rather than becoming one-property members.
+Segments below the member flatten into the property name as everywhere else, which is why
+`reading-mode-goto-first-item-on-reading-time-completion-show` is as long as it is — that is
+Learnosity's own segment name, not our flattening.
 
 ## Property functions
 

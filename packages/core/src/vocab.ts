@@ -172,7 +172,146 @@ export const VIEWS: Record<string, View> = {
     },
   },
 
-  "activity-edit": { mode: "activity_edit", modeled: false, view: {}, members: {} },
+  // The activity editor. Its config tree runs deeper than the item editor's (to five
+  // segments), so members are cut where Learnosity itself panes the UI: a depth-1 node
+  // with more than two leaves becomes a member named for its path, and a member with
+  // more than ten leaves splits at depth 2 — which only `player` reaches. Smaller nodes
+  // and depth-1 leaves stay view-level, since a member holding one property earns
+  // nothing. Deeper segments flatten into the property name, as everywhere else.
+  //
+  // `activity-edit-save` and `activity-edit-settings` mirror the view segment because
+  // the bare names collide: `save` is already a widget-templates property and `settings`
+  // is already an item-edit member. Member and property keywords share ONE namespace
+  // with one arity each — see the assertion in lexicon.ts.
+  //
+  // Not modeled, pending a value type for tag lists and object arrays: tags_on_create,
+  // player_templates, item_search.item_banks, save.restricted_tags.{all,either}, and
+  // item_search.filter.restricted.tags. item_title is skipped as deprecated — the
+  // reference directs callers to activity_edit.item.title instead.
+  "activity-edit": {
+    mode: "activity_edit",
+    modeled: true,
+    view: {
+      "activity-preview-item-reference-show": ["activity_preview.item.reference.show", "boolean"],
+      "adaptive-fields-show": ["adaptive_fields.show", "boolean"],
+      "annotations-enable": ["annotations.enable", "boolean"],
+      "back": ["back", "boolean"],
+      "customize-presets-enable": ["customize_presets.enable", "boolean"],
+      "default-player-template": ["default_player_template", "string"],
+      "description-edit": ["description.edit", "boolean"],
+      "description-show": ["description.show", "boolean"],
+      "details": ["details", "boolean"],
+      "difficulty-edit": ["difficulty.edit", "boolean"],
+      "difficulty-show": ["difficulty.show", "boolean"],
+      "enabled-player-templates": ["enabled_player_templates", "strings"],
+      "intro-item-default-checked": ["intro_item.default_checked", "boolean"],
+      "mode-default": ["mode.default", "string", ["edit", "preview"]],
+      "mode-show": ["mode.show", "boolean"],
+      "outro-item-default-checked": ["outro_item.default_checked", "boolean"],
+      "override-labels-enable": ["override_labels.enable", "boolean"],
+      "player-template-builder-show": ["player_template_builder.show", "boolean"],
+      "reference-edit": ["reference.edit", "boolean"],
+      "reference-show": ["reference.show", "boolean"],
+      "reporting-enable": ["reporting.enable", "boolean"],
+      "resource-item-show": ["resource_item.show", "boolean"],
+      "activity-edit-settings": ["settings", "boolean"],
+      "source": ["source", "boolean"],
+      "status-show": ["status.show", "boolean"],
+      "tags-edit": ["tags.edit", "boolean"],
+      "tags-show": ["tags.show", "boolean"],
+    },
+    members: {
+      "player-playback": { path: "player.playback", fields: {
+        "distractor-rationale-edit": ["distractor_rationale.edit", "boolean"],
+        "distractor-rationale-response-level-edit": ["distractor_rationale_response_level.edit", "boolean"],
+        "distractor-rationale-response-level-show": ["distractor_rationale_response_level.show", "boolean"],
+        "distractor-rationale-show": ["distractor_rationale.show", "boolean"],
+        "scroll-to-top-edit": ["scroll_to_top.edit", "boolean"],
+        "scroll-to-top-show": ["scroll_to_top.show", "boolean"],
+        "scrolling-indicator-edit": ["scrolling_indicator.edit", "boolean"],
+        "scrolling-indicator-show": ["scrolling_indicator.show", "boolean"],
+        "show": ["show", "boolean"],
+        "show-acknowledgements-edit": ["show_acknowledgements.edit", "boolean"],
+        "show-acknowledgements-show": ["show_acknowledgements.show", "boolean"],
+        "shuffle-items-edit": ["shuffle_items.edit", "boolean"],
+        "shuffle-items-show": ["shuffle_items.show", "boolean"],
+        "skip-submit-confirmation-edit": ["skip_submit_confirmation.edit", "boolean"],
+        "skip-submit-confirmation-show": ["skip_submit_confirmation.show", "boolean"],
+        "submit-criteria-edit": ["submit_criteria.edit", "boolean"],
+        "submit-criteria-show": ["submit_criteria.show", "boolean"],
+        "warning-on-change-edit": ["warning_on_change.edit", "boolean"],
+        "warning-on-change-show": ["warning_on_change.show", "boolean"],
+      } },
+      "item-search": { path: "item_search", fields: {
+        "back": ["back", "boolean"],
+        "filter-restricted-created-by": ["filter.restricted.created_by", "strings"],
+        "filter-restricted-current-user": ["filter.restricted.current_user", "boolean"],
+        "limit": ["limit", "number"],
+        "show": ["show", "boolean"],
+        "sort": ["sort", "boolean"],
+        "title-show": ["title.show", "boolean"],
+        "title-show-reference": ["title.show_reference", "boolean"],
+        "toolbar-search-controls": ["toolbar.search.controls", "strings", ["reference", "content", "title"]],
+        "toolbar-search-show": ["toolbar.search.show", "boolean"],
+      } },
+      "player-time": { path: "player.time", fields: {
+        "auto-save-edit": ["auto_save.edit", "boolean"],
+        "auto-save-show": ["auto_save.show", "boolean"],
+        "idle-timeout-edit": ["idle_timeout.edit", "boolean"],
+        "idle-timeout-show": ["idle_timeout.show", "boolean"],
+        "limit-type-edit": ["limit_type.edit", "boolean"],
+        "limit-type-show": ["limit_type.show", "boolean"],
+        "reading-mode-goto-first-item-on-reading-time-completion-show": ["reading_mode.goto_first_item_on_reading_time_completion.show", "boolean"],
+        "show": ["show", "boolean"],
+        "warning-time-edit": ["warning_time.edit", "boolean"],
+        "warning-time-show": ["warning_time.show", "boolean"],
+      } },
+      "item": { path: "item", fields: {
+        "add-show": ["add.show", "boolean"],
+        "custom-points-toggle-default-checked": ["custom_points.toggle.default_checked", "boolean"],
+        "custom-points-toggle-show": ["custom_points.toggle.show", "boolean"],
+        "edit-allow": ["edit.allow", "boolean"],
+        "status-show": ["status.show", "boolean"],
+        "title-show": ["title.show", "boolean"],
+        "title-show-reference": ["title.show_reference", "boolean"],
+      } },
+      "player-administration": { path: "player.administration", fields: {
+        "show": ["show", "boolean"],
+        "show-exit-edit": ["show_exit.edit", "boolean"],
+        "show-exit-show": ["show_exit.show", "boolean"],
+        "show-extend-edit": ["show_extend.edit", "boolean"],
+        "show-extend-show": ["show_extend.show", "boolean"],
+        "show-save-edit": ["show_save.edit", "boolean"],
+        "show-save-show": ["show_save.show", "boolean"],
+      } },
+      "duplicate": { path: "duplicate", fields: {
+        "deep-copy": ["deep_copy", "boolean"],
+        "duplicate-shared-passages": ["duplicate_shared_passages", "boolean"],
+        "show": ["show", "boolean"],
+      } },
+      "player-scoring": { path: "player.scoring", fields: {
+        "client-side-scoring-edit": ["client_side_scoring.edit", "boolean"],
+        "client-side-scoring-show": ["client_side_scoring.show", "boolean"],
+        "show": ["show", "boolean"],
+      } },
+      "player-text": { path: "player.text", fields: {
+        "font-size-edit": ["font_size.edit", "boolean"],
+        "font-size-show": ["font_size.show", "boolean"],
+        "show": ["show", "boolean"],
+      } },
+      "activity-edit-save": { path: "save", fields: {
+        "persist": ["persist", "boolean"],
+        "restricted-tags-allow-save": ["restricted_tags.allow_save", "boolean"],
+        "show": ["show", "boolean"],
+      } },
+      "title": { path: "title", fields: {
+        "edit": ["edit", "boolean"],
+        "mandatory": ["mandatory", "boolean"],
+        "show": ["show", "boolean"],
+      } },
+    },
+  },
+
   "activity-list": { mode: "activity_list", modeled: false, view: {}, members: {} },
 };
 

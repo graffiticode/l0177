@@ -40,6 +40,12 @@ steering warnings, and — via `get_spec` — returns a **host-language-neutral 
 Learnosity API requests, and does not emit runnable host-language code. The compiled `data` is
 a normalized design plus `warnings`; it is *not* the deliverable. The deliverable is the recipe.
 
+**Coverage:** all four Author API views are modeled — 193 options (item_edit 49, item_list 19,
+activity_edit 102, activity_list 16, plus 7 section options), every emitted path cross-checked
+against Learnosity's published reference. Left out deliberately: `player_templates` (out of
+scope — it is Assess API config passed through, see `scope.json`), `item_search.item_banks.filter`
+(needs recursive record schemas), and `item_title` (deprecated by Learnosity).
+
 > Historical note: L0177 began as a port of **L0158** (which compiled programs into signed
 > Learnosity Items/Questions/Author requests). That architecture was replaced by the oracle.
 > If you find references to `question-types.ts`, `items.ts`, `resolveCredentials`,
@@ -47,9 +53,10 @@ a normalized design plus `warnings`; it is *not* the deliverable. The deliverabl
 
 ### Structure
 
-- **`packages/core/`** — `@graffiticode/l0177`: the language. Pure TypeScript, ~320 lines.
-  - `src/vocab.ts`: **the single source of truth.** Every keyword, arity, property type,
-    member/section field list, view→mode mapping, and widget tag lives here. `lexicon.ts` and
+- **`packages/core/`** — `@graffiticode/l0177`: the language. Pure TypeScript.
+  - `src/vocab.ts`: **the single source of truth**, and most of the package by volume. Every
+    keyword, arity, value type, per-view member/field table (with each field's literal
+    Learnosity path), view→mode mapping, and widget tag lives here. `lexicon.ts` and
     `compiler.ts` are both generated from it — to add a property or view, edit this file first.
   - `src/lexicon.ts`: merges L0000's base lexicon with entries derived from `vocab.ts`.
   - `src/compiler.ts`: `Checker`/`Transformer` extending L0000's. Only `PROG` and `AUTHOR_EMBED`
@@ -75,7 +82,10 @@ a normalized design plus `warnings`; it is *not* the deliverable. The deliverabl
 
 - **`packages/view/`** — `@graffiticode/l0177-view`: React view component. Vite + TypeScript +
   Tailwind, built on `@graffiticode/l0000-view`.
-  - `src/components/form/Form.tsx`: the language-specific Form.
+  - `src/components/form/Form.tsx`: renders the compiled *design* — the target view, whether
+    it is complete, the warnings in compiler order, and every option beside the exact
+    Learnosity path it resolves to. There is no assessment to mount: `compile` returns a
+    design, and the recipe comes from `get_spec`.
   - `embed/`: standalone HTML entry built by `vite.embed.config.ts` into `dist-embed/`.
 
 ### The language
@@ -103,7 +113,7 @@ The grammar is deliberately uniform (this is what makes the compiler registry-dr
 | :-------- | :---: | :---- |
 | `author-embed` | 1 | Head; takes the whole property + view chain. |
 | Views: `item-edit` `item-list` `activity-edit` `activity-list` | 2 | Take a `[list]` of members; select the Learnosity `mode`. |
-| Members: `item` `widget` `settings` | 1 | Take a property chain; fold into the view's `config` by kind. |
+| Members (14 keywords, view-scoped): `item` `widget` `settings` `filter-restricted` `toolbar` `item-search` `player-playback` … | 1 | Take a property chain; fold into the view's `config` by kind. |
 | Sections: `container` `widget-templates` `global` | 2 | Take a property sub-chain; merge as a named record. |
 | Properties (every one) | 2 | `name value`, chained; the chain ends with `{}`. |
 | Widget-type enum values | — | UPPERCASE-kebab `TAG` tokens (`MCQ`, `CLOZE-TEXT`). |
@@ -112,7 +122,13 @@ Conventions that hold everywhere:
 - Function keywords are **lowercase-kebab**; enum values are **UPPERCASE-kebab** tags, so the
   two can never collide.
 - Learnosity's nested config is flattened to kebab names
-  (`config.item_edit.item.reference.show` → `reference-show`).
+  (`config.item_edit.item.reference.show` → `reference-show`), with the literal path recorded
+  in the registry — the kebab form alone can't say whether a hyphen was a `.` or a `_`.
+- A keyword that would collide **mirrors more of its path** rather than inventing a term:
+  `filter-restricted`, `toolbar-add`, `activity-edit-save`, `activity-edit-settings`.
+- A **bare property chain inside a view's `[list]`** sets that view's own options (`limit 25 {}`
+  → `config.item_list.limit`). Terminate it with `{}` before the next member, or it swallows
+  that member as its continuation — the compiler warns rather than dropping it silently.
 - **Everything is optional** — smart defaults. `item {}` is a fully-defaulted item.
 - An unknown property is a **parse error**, not a warning (every valid property is a function).
   Warnings are reserved for values and combinations the compiler accepted but wants to steer.
@@ -131,10 +147,54 @@ Conventions that hold everywhere:
 
 `complete` is `true` exactly when there are no holes.
 
-Members are **view-scoped**: a member the view doesn't accept is **dropped with a warning**
-rather than passed through, because folding it in would emit config Learnosity ignores for
-that mode. Only `item-edit` is in `VIEW_MODELED`; the other three views emit an "isn't fully
-modeled yet" warning and validate loosely.
+Members are **view-scoped, and so are their property types**: a member or field a view doesn't
+define is **dropped with a warning** rather than passed through, because folding it in would
+emit config Learnosity ignores for that mode. All four views are modeled — there is no
+pass-through path left, and no "isn't fully modeled yet" warning.
+
+This scoping is load-bearing, not decorative. `item` names a *different Learnosity node* in
+each view (`config.item_edit.item` and `config.item_list.item` share exactly one field name),
+and `status` is a boolean in one place and a list of strings in another. That is why a property
+function cannot validate itself: only the fold knows the `(view, member)` it landed in.
+
+### The output carries exact Learnosity paths
+
+`data.paths` maps every config key a design sets to its full Learnosity path — e.g.
+`config.item.reference-prefix` → `config.item_edit.item.reference.prefix`. The recipe reads
+paths from here rather than expanding kebab names, because the flattening is ambiguous
+(`title-show` is `title.show`, `enable-selection` is `enable_selection`) and the same name
+resolves differently per view. `spec-directive.md` requires the generator to copy them verbatim.
+
+### Value types
+
+Declared per field in `vocab.ts` as `[learnosityPath, type, constraint?]`:
+
+`boolean` · `number` · `string` · `strings` (list of strings) · `widgets` (UPPERCASE widget-type
+tags) · `tags` (Learnosity TagsV2 — records of `{type, name?}`, written as gc records so the
+design mirrors the payload) · `records` (a list of records validated against a schema, used by
+`item-banks`) · `unmodeled` (documented by Learnosity but deliberately not modeled — it reports
+itself as such rather than as a typo).
+
+The optional third slot is a per-type constraint: accepted values for `string`/`strings`, or the
+element schema for `records`.
+
+### Build-time guards
+
+Three assertions turn collisions that used to fail far from their cause into errors at the point
+of the mistake. Each exists because the failure actually happened:
+
+- **`mergeLexicon` (in L0000)** throws if an L0177 keyword shadows a base one without being
+  declared an override. A bare `filter` for `config.item_list.filter` would have deleted L0000's
+  list `filter`, surfacing as an arity error in unrelated programs.
+- **The same helper** throws on a *stale* override — one that no longer shadows anything — so
+  the list can't rot into cover for the next real collision.
+- **`lexicon.ts`** throws if a keyword is both a member (arity 1) and a property (arity 2).
+  Keywords share one namespace with one arity; modelling `activity_edit` hit this with
+  `reference`, `status`, `save` and `settings`, and top-level `reference "r"` began parsing as a
+  member.
+
+The remedy in each case is the same: mirror more of the Learnosity path
+(`filter` → `filter-restricted`, `save` → `activity-edit-save`) rather than invent a name.
 
 ### The spec/ directory is the product
 
@@ -169,8 +229,10 @@ exist. Do not soften them without new evidence:
   enforcing nothing. A wrong config path is therefore *worse* than an acknowledged unknown.
 - **Widget-type restriction has no confirmed config binding.** The previously-documented
   `config.dependencies.question_editor_api.init_options.widgetTypes` was tested and restricts
-  nothing; `config.widget_templates.widget_types` and `...init_options.question_type_groups`
-  were also tried without effect. The recipe must name the intended types, state the binding is
+  nothing — and does not appear in the current reference at all. `config.widget_templates.widget_types`
+  is documented as `{default, show}` (which tile view opens, whether the buttons show), so it was
+  never a restriction key. `...init_options.question_type_groups` was tried without effect, though
+  the reference documents a `template_references` field on it that has not been tested. The recipe must name the intended types, state the binding is
   unconfirmed, and carry the restriction as a verification step — never emit a guessed path.
 - **Because of fail-open, any check on config-driven behaviour must be differential** — a
   control run with the key omitted — *including* enabling keys, not just restricting ones.
@@ -209,17 +271,8 @@ Client design (natural language) → generator writes L0177 source → POST /com
 - `NODE_ENV`: `development` or `production` (production forces HTTPS and switches request logging)
 
 ### Dependencies
-- `@graffiticode/l0000` (published) — base language, inherited by `core`
+- `@graffiticode/l0000` (published, `^0.2.0`) — base language, inherited by `core`; also supplies
+  `mergeLexicon`, the shadow-checking lexicon merge every child dialect should use
 - `@graffiticode/l0000-view` (published) — base view, inherited by `view`
 - `@graffiticode/auth` — auth service client used by `api`
 - `@graffiticode/parser`, `spec-md` — dev-only in `core` (tests; spec HTML generation)
-
-## Known stale code
-
-One vestige of the pre-oracle architecture is still in the tree. Don't build on it, and don't
-infer behaviour from it:
-
-- **`packages/view/src/components/form/Form.tsx`** switches on `state.data.type` ∈
-  `questions|author|items` and mounts a signed `request` into the Learnosity browser SDK. The
-  compiler emits no `type` and no `request`, so every program falls through to the raw
-  `<pre>{JSON}</pre>` branch. The Form does not render the design or its warnings.

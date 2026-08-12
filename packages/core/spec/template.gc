@@ -1,12 +1,1 @@
-author-embed
-  domain "lms.example.edu"
-  user-id "u123"
-  reference "algebra-item-1"
-  organisation-id 100
-  question-type-groups [MCQ CLOZE]
-  allow-widgets [MCQ CLOZE-TEXT]
-  item-edit [
-    item back true scoring true reference-prefix "LEAR_" {}
-    widget edit true delete false {}
-  ]
-  {}..
+author-embed {}..

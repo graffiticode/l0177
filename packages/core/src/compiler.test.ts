@@ -7,6 +7,8 @@
 import { describe, test, expect } from "vitest";
 import { parser } from "@graffiticode/parser";
 import { compiler, lexicon } from "./index.js";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
 
 async function compile(src: string, data: any = {}, config: any = {}): Promise<any> {
   const code = await parser.parse(177, src, lexicon);
@@ -535,5 +537,45 @@ describe("exact Learnosity paths accompany the design", () => {
   test("a dropped field contributes no path", async () => {
     const out = await compile('author-embed domain "d" user-id "u" organisation-id 1 item-list [ item back true {} ] {}..');
     expect(Object.keys(out.paths)).not.toContain("config.item.back");
+  });
+});
+
+/**
+ * The shipped starting template. The console seeds a NEW item with this file verbatim (its
+ * createItem runs generateCode with the literal prompt "Create a minimal starting template",
+ * which short-circuits to the asset — no model involved), and the user's first real request then
+ * runs as an EDIT of it. So whatever this file asserts, every console-authored item inherits and
+ * the generator is correct to preserve.
+ *
+ * It used to be the canonical worked example — domain "lms.example.edu", user-id "u123",
+ * reference "algebra-item-1", organisation-id 100, plus item/widget boilerplate. That pre-filled
+ * exactly the three properties this dialect steers on, so every console item started
+ * `complete: true` with zero warnings and the holes-first refinement loop could never fire. Four
+ * mark-3 training items harvested on 2026-08-12 all carried those literals with no prompt
+ * mentioning them; the generator had not invented them, it had inherited them.
+ *
+ * So the template must introduce NOTHING. Not the required properties, and not a view either —
+ * the view IS the mode, so pre-picking one biases every first request toward that experience.
+ */
+describe("the shipped starting template introduces nothing", () => {
+  const template = readFileSync(
+    fileURLToPath(new URL("../spec/template.gc", import.meta.url)), "utf-8",
+  );
+
+  test("asserts none of the hole-bearing properties, and no view", () => {
+    for (const prop of ["domain", "user-id", "reference", "organisation-id"]) {
+      expect(template).not.toContain(prop);
+    }
+    for (const view of ["item-edit", "item-list", "activity-edit", "activity-list"]) {
+      expect(template).not.toContain(view);
+    }
+  });
+
+  test("compiles, and every design hole surfaces for the author to fill", async () => {
+    const out = await compile(template);
+    expect(out.complete).toBe(false);
+    expect(hasWarning(out, "Which authoring view?")).toBe(true);
+    expect(hasWarning(out, "serving `domain`")).toBe(true);
+    expect(hasWarning(out, "identify the author")).toBe(true);
   });
 });

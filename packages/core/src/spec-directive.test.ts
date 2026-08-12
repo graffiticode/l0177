@@ -87,6 +87,28 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
     expect(directive).toContain("requested item/activity actually loads");
   });
 
+  // Round two of implementer feedback, 2026-08-12. The first three defects made the recipe wrong;
+  // these three made it incomplete in ways that cost the reader a detour into the SDK source.
+  test("the SDK's return value is passed through, not reassembled flat", () => {
+    expect(directive).toContain("RETURNS the complete");
+    expect(directive).toContain("nested under `request`");
+    expect(instructions).toContain("do not rebuild it");
+    // The wrong guess is natural because the docs read as flat — say so, or the rule looks arbitrary.
+    expect(directive).toContain("natural wrong guess");
+  });
+
+  test("the types that bite are stated", () => {
+    expect(directive).toContain("integer");
+    expect(instructions).toContain("must be an **integer**");
+  });
+
+  test("error events carry code and message, not name", () => {
+    expect(directive).toContain("not `name`");
+    expect(instructions).toContain("does **not** reliably carry `e.name`");
+    // Phase labelling is what made a post-ready 10000 legible in the field.
+    expect(directive).toContain("WHICH PHASE");
+  });
+
   test("the Goal states intent, never an accomplished restriction", () => {
     expect(directive).toContain("MUST NOT claim the editor");
     expect(directive).toContain("pending verification");

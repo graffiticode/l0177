@@ -176,6 +176,17 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
   `user-firstname`/`user-lastname`/`user-email` when the design carries them: those feed the Author
   Site's audit trail, so a real deployment wants them even though init does not require them.
 - **Signing is SDK-handled [verified]:** use the official Learnosity **server-side SDK** for your language (.NET / Java / Node.js / PHP / Python / Ruby) to generate the `security` object from your consumer key + secret. Do not hand-roll signing unless unavoidable.
+- **⚠ The SDK RETURNS the whole init object; do not rebuild it [verified — implementer build,
+  2026-08-12].** `sdk.init("author", security, secret, request)` returns
+  `{ security, request: { mode, reference?, config, user, organisation_id } }` — the request
+  options **nested under `request`**, not spread at the top level. That entire return value is what
+  `LearnosityAuthor.init()` takes. This is the shape most likely to be got wrong, because
+  Learnosity's own docs list `mode`/`reference`/`user` as "initialization options", which reads as a
+  FLAT object; an implementer settled it only by reading the SDK's `index.js` and a demo `.php`.
+  Assembling a flat object fails at init. Pass the SDK's return value through untouched.
+- **Types are not forgiving [verified — implementer build, 2026-08-12]:** `organisation_id` must be
+  an **integer**, not a numeric string, and `mode` must be the exact string for the view
+  (`item_edit` / `item_list` / `activity_edit` / `activity_list`) — no other casing or spelling.
 - **`security` [verified]** = `{ consumer_key, domain, timestamp (UTC, `YYYYMMDD-HHMM`), signature }`. The consumer **secret** signs the request but is **never** sent to the browser. `domain` MUST equal the host actually serving the page — a mismatch (or any tampered signature) yields Learnosity error **41003 "Signatures do not match"**. This is the **#1 cause of a failed init**.
 - **`mode`** selects the view; there is no in-UI switch between the item/activity list/edit views — build a separate page/init per experience.
 
@@ -271,7 +282,11 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
   touches — `edit: false` removes exactly the two per-widget ones.) The recipe may state these
   as fact. Do **not** use `config.widget_templates.edit`/`.delete`; that path is supported by
   nothing.
-- **Client-side wiring [verified]:** provide a `readyListener` (fires when initialized) and an `errorListener` (`e.code` / `e.message` / `e.name`); optionally `assetRequest` (your DAM) and `customButtons`.
+- **Client-side wiring [verified]:** provide a `readyListener` (fires when initialized) and an `errorListener`; optionally `assetRequest` (your DAM) and `customButtons`. The error event carries
+  **`e.code` and `e.message`**. It does **not** reliably carry `e.name` — that is `undefined` for
+  both 41003 and 10000, and is only populated when `init()` throws a local `Error` [verified —
+  implementer build, 2026-08-12]. Handle both shapes; do not instruct anyone to log `e.name` as
+  though it were always present.
 - **⚠ `errorListener` can fire AFTER `readyListener`, not instead of it [verified — browser run,
   2026-08-12].** They are not exclusive outcomes. Init and content-loading are separate phases: with
   an `organisation_id` the consumer cannot access, the editor initializes, `readyListener` fires,

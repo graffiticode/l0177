@@ -282,6 +282,18 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
   touches — `edit: false` removes exactly the two per-widget ones.) The recipe may state these
   as fact. Do **not** use `config.widget_templates.edit`/`.delete`; that path is supported by
   nothing.
+- **Observable anchors [reported by an implementer, 2026-08-12 — not independently re-run].** A UI
+  check needs something specific to look at, or it becomes "does it look right", which is exactly
+  what fails open. Known anchors: the question-type picker's groups are `li.qtGroup`; an authored
+  widget in the editor body is `.lrn-author-widget-drag-wrapper`. Do NOT invent a looser selector —
+  `[class*="widget"]` matches Learnosity's own EMPTY-STATE chrome and will report a confident pass
+  on an editor holding nothing, which is how one implementer's "did the item load?" check passed
+  against a blank editor.
+- **Confirming an item or activity EXISTS is not an Author API question [implementer, 2026-08-12].**
+  The Author API gives no signal for it — a reference naming nothing initializes cleanly and renders
+  empty. The answer lives in the **Data API** `itembank/items` endpoint (a separate API, its own
+  signed request). L0177 does not integrate the Data API and is not describing how to author items
+  there; naming the endpoint that answers a precondition is a pointer, not a scope change.
 - **Client-side wiring [verified]:** provide a `readyListener` (fires when initialized) and an `errorListener`; optionally `assetRequest` (your DAM) and `customButtons`. The error event carries
   **`e.code` and `e.message`**. It does **not** reliably carry `e.name` — that is `undefined` for
   both 41003 and 10000, and is only populated when `init()` throws a local `Error` [verified —

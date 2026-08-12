@@ -140,6 +140,39 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
     expect(directive).toContain("WHICH PHASE");
   });
 
+  // Round four, 2026-08-12: gaps found building groups-math-templates. The theme is that good
+  // epistemics without a mechanism still leaves the reader stuck — and that a hedge is not a fix.
+  test("design-complete is separated from operationally ready", () => {
+    expect(directive).toContain('Never write "no holes, nothing left to do"');
+    expect(directive).toContain("still unverified before this can work");
+  });
+
+  test("a default-valued check is REPLACED, not caveated, and cannot-fail steps are banned", () => {
+    expect(directive).toContain("REPLACE it, do not merely caveat it");
+    expect(directive).toContain("A step that cannot fail is not a check");
+    // The rule must generalize past the two keys it was first written for.
+    expect(directive).toContain("EVERY key at its default");
+    expect(directive).toContain("require_validation");
+  });
+
+  test("UI checks name an observable anchor", () => {
+    expect(directive).toContain("observable anchor, or it is a vibe");
+    expect(instructions).toContain("li.qtGroup");
+    expect(instructions).toContain(".lrn-author-widget-drag-wrapper");
+    // The selector that produced a false pass on an empty editor.
+    expect(instructions).toContain("EMPTY-STATE chrome");
+  });
+
+  test("existence checks name the mechanism that answers them", () => {
+    expect(directive).toContain("Diagnosis without a mechanism is half a step");
+    expect(instructions).toContain("itembank/items");
+  });
+
+  test("checks that cannot run unattended are marked", () => {
+    expect(directive).toContain("cannot run unattended");
+    expect(directive).toContain("manual only");
+  });
+
   test("the Goal states intent, never an accomplished restriction", () => {
     expect(directive).toContain("MUST NOT claim the editor");
     expect(directive).toContain("pending verification");

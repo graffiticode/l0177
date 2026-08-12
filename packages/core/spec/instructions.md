@@ -290,10 +290,17 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
 - **⚠ `errorListener` can fire AFTER `readyListener`, not instead of it [verified — browser run,
   2026-08-12].** They are not exclusive outcomes. Init and content-loading are separate phases: with
   an `organisation_id` the consumer cannot access, the editor initializes, `readyListener` fires,
-  and only then does the content request fail — error **10000**. So **`readyListener` firing is
-  evidence that init succeeded, and nothing more**. It is not evidence that the item or activity
-  loaded, that the item bank was reachable, or that the design's `organisation-id` is valid. Any
-  check that stops at "ready fired" passes on a broken editor.
+  and only then does the content request fail. So **`readyListener` firing is evidence that init
+  succeeded, and nothing more**. It is not evidence that the item or activity loaded, that the item
+  bank was reachable, or that the design's `organisation-id` is valid. Any check that stops at
+  "ready fired" passes on a broken editor.
+  **Match on the PHASE, not the code.** Two implementers observed different codes for an
+  inaccessible organisation on 2026-08-12 — one reported **10000**, the other **40003** — and both
+  were direct browser observations, so neither is being discarded. The stable, actionable fact is
+  the timing: an error arriving *after* ready is a content-load failure, whatever its number. A
+  recipe should tell the reader to label the phase and treat any post-ready error as content-load,
+  rather than to match one code. (A tampered signature, by contrast, reliably yields **41003**
+  *during* init.)
 
 ### Gotchas
 - **wrong config key → silently ignored, restricts nothing** (fail-open). The editor loads and looks right. Only a live check of the running editor proves a restriction is in force.

@@ -81,10 +81,41 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
 
   test("ready is not proof of load — errorListener can fire after it", () => {
     expect(directive).toContain("not a passing check on its own");
-    expect(directive).toContain("error 10000");
     expect(instructions).toContain("can fire AFTER `readyListener`");
     // The check that actually catches a broken editor.
     expect(directive).toContain("requested item/activity actually loads");
+    // NOT a specific code. Two implementers observed 10000 and 40003 for the same scenario on
+    // 2026-08-12, both direct browser observations, so the rule keys on the PHASE instead. An
+    // earlier version of this test pinned "error 10000" and would now be enforcing one of two
+    // contradictory readings as though it were settled.
+    expect(directive).toContain("treat any post-ready error as a content-load failure");
+    expect(directive).toContain("10000 and 40003");
+    expect(instructions).toContain("Match on the PHASE, not the code");
+  });
+
+  // Round three, 2026-08-12: gaps found building container-and-settings. None made the recipe
+  // wrong; each made a mandated check impossible to satisfy or a required value impossible to look up.
+  test("the paths map is carried in the prompt and reproduced in the recipe", () => {
+    expect(directive).toContain("<COMPILED_PATHS>");
+    expect(directive).toContain("must REPRODUCE that map");
+  });
+
+  test("a differential against a key set to its own default is uninformative, not failing", () => {
+    expect(directive).toContain("structurally uninformative");
+    expect(directive).toContain("manufactures a false alarm");
+    // The escape: prove it by setting the NON-default value instead.
+    expect(directive).toContain("NON-default value");
+  });
+
+  test("inert-unless-precondition keys and host-page obligations are named", () => {
+    expect(directive).toContain("enable scrolling for long content");
+    expect(directive).toContain("host-page obligations");
+    expect(directive).toContain("tall enough");
+  });
+
+  test("a present-but-nonexistent reference fails identically to an omitted one", () => {
+    expect(directive).toContain("PRESENT but names something that does not exist");
+    expect(directive).toContain("confirm the named item exists in that bank");
   });
 
   // Round two of implementer feedback, 2026-08-12. The first three defects made the recipe wrong;

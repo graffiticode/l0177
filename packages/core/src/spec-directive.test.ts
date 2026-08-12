@@ -55,6 +55,13 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
     expect(directive).toContain("including ENABLING keys");
     // The specific hole the generator slipped through: a bare "confirm editing works".
     expect(directive).toContain("wearing a positive sign");
+    // The rule generalized fine in one measured generation and not in another: with worked
+    // examples only for `widget.*`, a recipe reproduced those two verbatim and left the group
+    // check bare ("confirm only the MCQ and cloze groups are visible") — the worthless shape, on
+    // the one key with no example. So question_type_groups gets its own, and the closing sentence
+    // says the shape applies to keys with no example rather than naming a list to match against.
+    expect(directive).toContain("shows only the intended ones");
+    expect(directive).toContain("keys with no worked example above");
   });
 
   test("the Goal states intent, never an accomplished restriction", () => {

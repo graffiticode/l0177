@@ -64,6 +64,29 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
     expect(directive).toContain("keys with no worked example above");
   });
 
+  // All three came from an implementer building against a generated recipe on 2026-08-12. Each was
+  // stated confidently and wrongly, and the first was stated under a [verified] marking — which is
+  // why the marking convention itself now demands naming the run behind it.
+  test("init() argument order is the documented one, and the wrong one is named", () => {
+    expect(directive).toContain("init(initializationOptions, domSelector, callbacks)");
+    expect(directive).toContain('NEVER emit `init(initObject, callbacks, "<element>")`');
+    expect(instructions).toContain("init(initializationOptions, domSelector, callbacks)");
+  });
+
+  test("request.user is an object, and a design with only user-id still needs one built", () => {
+    expect(directive).toContain("is an object, not an id");
+    expect(directive).toContain("must be provided and be an object");
+    expect(instructions).toContain("user = { id, firstname?, lastname?, email? }");
+  });
+
+  test("ready is not proof of load — errorListener can fire after it", () => {
+    expect(directive).toContain("not a passing check on its own");
+    expect(directive).toContain("error 10000");
+    expect(instructions).toContain("can fire AFTER `readyListener`");
+    // The check that actually catches a broken editor.
+    expect(directive).toContain("requested item/activity actually loads");
+  });
+
   test("the Goal states intent, never an accomplished restriction", () => {
     expect(directive).toContain("MUST NOT claim the editor");
     expect(directive).toContain("pending verification");

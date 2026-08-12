@@ -158,7 +158,23 @@ Learnosity's public demo consumer on `localhost`. Anything not marked verified m
 to the client as *documented-but-unconfirmed*, never asserted as fact.
 
 - **Script tag [verified]:** load the Author API from the **bare host** — `<script src="https://authorapi.learnosity.com"></script>`. It defines the global `LearnosityAuthor`. Do **not** invent a versioned file path: `https://authorapi.learnosity.com/latest/authorapi.js` **404s**, `LearnosityAuthor` is then undefined, `init()` never runs, and *neither callback fires* — a silently blank page.
-- **Init [verified]:** server-side, build a signed request and call `LearnosityAuthor.init(initObject, callbacks, "learnosity-author")`. `initObject = { security, request: { mode, reference?, config, user } }`.
+- **Init — CORRECTED 2026-08-12.** Server-side, build a signed request, then call
+  `LearnosityAuthor.init(initializationOptions, domSelector, callbacks)` — the documented order.
+  Learnosity's own demo repo also uses the two-argument form `init(initObject, callbacks)`, where
+  the target element is defaulted. **Never `init(initObject, callbacks, "<element>")`**: that puts
+  the callbacks object in the selector slot, so neither listener is ever registered, and you get
+  exactly the silent blank editor described in the bullet above — the failure mode hardest to
+  trace, produced by the guidance meant to prevent it. This bullet previously carried a
+  **[verified]** marking while asserting that wrong order; an implementer running it in a browser,
+  against the README and the demo repo, is what caught it. A marking is only as good as the run
+  behind it: use **[verified]** only for something exercised end to end, and say what exercised it.
+- **`request.user` is an OBJECT and is required [verified — browser run, 2026-08-12].**
+  `initObject = { security, request: { mode, reference?, config, user } }`, where
+  `user = { id, firstname?, lastname?, email? }`. A bare `user_id` string — or no `user` at all —
+  fails init with *"A user attribute must be provided and be an object when initializing the Author
+  API"*. Build it from the design's `user-id`, and fill `firstname`/`lastname`/`email` from
+  `user-firstname`/`user-lastname`/`user-email` when the design carries them: those feed the Author
+  Site's audit trail, so a real deployment wants them even though init does not require them.
 - **Signing is SDK-handled [verified]:** use the official Learnosity **server-side SDK** for your language (.NET / Java / Node.js / PHP / Python / Ruby) to generate the `security` object from your consumer key + secret. Do not hand-roll signing unless unavoidable.
 - **`security` [verified]** = `{ consumer_key, domain, timestamp (UTC, `YYYYMMDD-HHMM`), signature }`. The consumer **secret** signs the request but is **never** sent to the browser. `domain` MUST equal the host actually serving the page — a mismatch (or any tampered signature) yields Learnosity error **41003 "Signatures do not match"**. This is the **#1 cause of a failed init**.
 - **`mode`** selects the view; there is no in-UI switch between the item/activity list/edit views — build a separate page/init per experience.
@@ -256,6 +272,13 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
   as fact. Do **not** use `config.widget_templates.edit`/`.delete`; that path is supported by
   nothing.
 - **Client-side wiring [verified]:** provide a `readyListener` (fires when initialized) and an `errorListener` (`e.code` / `e.message` / `e.name`); optionally `assetRequest` (your DAM) and `customButtons`.
+- **⚠ `errorListener` can fire AFTER `readyListener`, not instead of it [verified — browser run,
+  2026-08-12].** They are not exclusive outcomes. Init and content-loading are separate phases: with
+  an `organisation_id` the consumer cannot access, the editor initializes, `readyListener` fires,
+  and only then does the content request fail — error **10000**. So **`readyListener` firing is
+  evidence that init succeeded, and nothing more**. It is not evidence that the item or activity
+  loaded, that the item bank was reachable, or that the design's `organisation-id` is valid. Any
+  check that stops at "ready fired" passes on a broken editor.
 
 ### Gotchas
 - **wrong config key → silently ignored, restricts nothing** (fail-open). The editor loads and looks right. Only a live check of the running editor proves a restriction is in force.
@@ -264,9 +287,19 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
 - consumer secret exposed to the browser → security hole (server-only).
 - stale/skewed timestamp → failure (use UTC, fresh per request).
 - no `errorListener` → init failures are silent.
+- **wrong `init()` argument order → blank editor, no listeners.** `init(obj, callbacks, "#el")` is
+  wrong; the callbacks land in the selector slot. Use `init(obj, "#el", callbacks)` or `init(obj, callbacks)`.
+- **bare `user_id` instead of a `user` object → init fails** ("A user attribute must be provided and
+  be an object").
+- **inaccessible `organisation_id` → ready fires, THEN error 10000.** Looks like a success until the
+  content never appears.
 
 ### Acceptance criteria (what "done" looks like)
-- `readyListener` fires with no error and the editor renders in your target element.
+- `readyListener` fires with no error and the editor renders in your target element. **This proves
+  init only.** Content loading is a later phase that can still fail after ready — so pair it with
+  the next check; on its own it is not evidence the editor works.
+- the requested item/activity actually loads and its content is visible, and `errorListener` logged
+  nothing after ready (an inaccessible item bank shows up here as error 10000, not at init).
 - `errorListener` catches a deliberately-tampered signature (a 401-class error).
 - the init payload sent to the browser contains no consumer secret.
 - the `domain` in `security` equals the host serving the page.

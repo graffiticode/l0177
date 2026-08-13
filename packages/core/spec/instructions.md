@@ -305,6 +305,13 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
   verification steps are not read-only: exercising the widget Save path persists to the real item
   behind `reference`. Verification should run against a throwaway item or a duplicate, never the
   design's own reference. One implementer modified a live item following steps that never said so.
+- **Keys that are inert unless a precondition holds.** `container.height` and
+  `container.fixed-footer-height` do nothing unless the item has **"enable scrolling for long
+  content"** turned on — a differential against an item without it shows no difference for reasons
+  unrelated to the path. `fixed-footer-height` also presumes the host page really has a fixed footer
+  of that height, and `scroll-into-view-selector` presumes that element exists and that the page is
+  tall enough for the target's top edge to leave the viewport. These are host-page obligations, not
+  properties of the integration.
 - **Affordances a standalone mount does not have [implementer, 2026-08-12].** `item.back` renders no
   Back control in a standalone `item_edit` mount, because there is no list to return to — a
   differential on it produces nothing in either direction. Similarly, stock templates ship with
@@ -342,28 +349,12 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
   rather than to match one code. (A tampered signature, by contrast, reliably yields **41003**
   *during* init.)
 
-### Gotchas
-- **wrong config key → silently ignored, restricts nothing** (fail-open). The editor loads and looks right. Only a live check of the running editor proves a restriction is in force.
-- **invented script URL → blank page, no error.** `.../latest/authorapi.js` 404s; use the bare host `https://authorapi.learnosity.com`. Neither listener fires, so there is nothing in the console to lead you to the cause.
-- `domain` mismatch or tampered signature → error **41003 "Signatures do not match"**.
-- consumer secret exposed to the browser → security hole (server-only).
-- stale/skewed timestamp → failure (use UTC, fresh per request).
-- no `errorListener` → init failures are silent.
-- **wrong `init()` argument order → blank editor, no listeners.** `init(obj, callbacks, "#el")` is
-  wrong; the callbacks land in the selector slot. Use `init(obj, "#el", callbacks)` or `init(obj, callbacks)`.
-- **bare `user_id` instead of a `user` object → init fails** ("A user attribute must be provided and
-  be an object").
-- **inaccessible `organisation_id` → ready fires, THEN error 10000.** Looks like a success until the
-  content never appears.
-
-### Acceptance criteria (what "done" looks like)
-- `readyListener` fires with no error and the editor renders in your target element. **This proves
-  init only.** Content loading is a later phase that can still fail after ready — so pair it with
-  the next check; on its own it is not evidence the editor works.
-- the requested item/activity actually loads and its content is visible, and `errorListener` logged
-  nothing after ready (an inaccessible item bank shows up here as error 10000, not at init).
-- `errorListener` catches a deliberately-tampered signature (a 401-class error).
-- the init payload sent to the browser contains no consumer secret.
-- the `domain` in `security` equals the host serving the page.
+### Gotchas and acceptance criteria
+Both are stated in the canonical knowledge above and are the RECIPE's to render — the spec-directive
+says what each section must carry. They were restated here and drifted: the copy still pinned error
+10000 for an inaccessible organisation (two implementers observed different codes; the rule is now
+to match on the phase) and still accepted "a 401-class error" for a tampered signature (which passes
+on a 41001 prefix corruption without exercising the signing path). Two statements of one fact age
+independently, so there is one.
 
 OUT_OF_SCOPE: authoring item **content** (→ L0176); assessment delivery and analytics (future L0177 modes); emitting runnable host-language code (the recipe is language-neutral).

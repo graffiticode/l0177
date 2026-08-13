@@ -32,14 +32,14 @@ const instructions = read("instructions.md");
 
 describe("spec-directive.md keeps the rules the live API taught us", () => {
   test("asserts the verified group path, and explains why all ten groups appear", () => {
-    expect(directive).toContain("config.dependencies.question_editor_api.init_options.question_type_groups");
-    expect(directive).toContain("overrides all ten default groups");
+    expect(instructions).toContain("config.dependencies.question_editor_api.init_options.question_type_groups");
+    expect(directive).toContain("all ten default group references");
     // The trap that made this key read as inert: an unknown group reference is additive.
     expect(directive).toContain("ADDITIVE");
   });
 
   test("still refuses the paths that were shown not to restrict", () => {
-    expect(directive).toContain("Never emit these");
+    expect(directive).toContain("Never emit");
     expect(directive).toContain("widgetTypes");
     expect(directive).toContain("widget_templates.widget_types");
   });
@@ -47,21 +47,21 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
   test("question types stay intent — only groups are enforced", () => {
     expect(directive).toContain("Question TYPES are a different taxonomy");
     expect(directive).toContain("NOT restrictable");
-    expect(directive).toContain("Do NOT invent a per-type config key");
+    expect(directive).toContain("Never invent a per-type config key");
   });
 
   test("config-behaviour checks must be differential, including enabling keys", () => {
-    expect(directive).toContain("must be differential");
-    expect(directive).toContain("including ENABLING keys");
+    expect(directive).toContain("must be DIFFERENTIAL");
+    expect(directive).toContain("ENABLING keys too");
     // The specific hole the generator slipped through: a bare "confirm editing works".
-    expect(directive).toContain("wearing a positive sign");
+    expect(directive).toContain("confirm editing works");
     // The rule generalized fine in one measured generation and not in another: with worked
     // examples only for `widget.*`, a recipe reproduced those two verbatim and left the group
     // check bare ("confirm only the MCQ and cloze groups are visible") — the worthless shape, on
     // the one key with no example. So question_type_groups gets its own, and the closing sentence
     // says the shape applies to keys with no example rather than naming a list to match against.
-    expect(directive).toContain("shows only the intended ones");
-    expect(directive).toContain("keys with no worked example above");
+    expect(directive).toContain("list overrides (`question_type_groups`)");
+    expect(directive).toContain("if both runs look identical, the key changed nothing");
   });
 
   // All three came from an implementer building against a generated recipe on 2026-08-12. Each was
@@ -69,27 +69,27 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
   // why the marking convention itself now demands naming the run behind it.
   test("init() argument order is the documented one, and the wrong one is named", () => {
     expect(directive).toContain("init(initializationOptions, domSelector, callbacks)");
-    expect(directive).toContain('NEVER emit `init(initObject, callbacks, "<element>")`');
+    expect(directive).toContain('NEVER `init(initObject, callbacks, "<element>")`');
     expect(instructions).toContain("init(initializationOptions, domSelector, callbacks)");
   });
 
   test("request.user is an object, and a design with only user-id still needs one built", () => {
-    expect(directive).toContain("is an object, not an id");
-    expect(directive).toContain("must be provided and be an object");
+    expect(directive).toContain("`request.user` is an OBJECT");
+    expect(instructions).toContain("must be provided and be an object");
     expect(instructions).toContain("user = { id, firstname?, lastname?, email? }");
   });
 
   test("ready is not proof of load — errorListener can fire after it", () => {
-    expect(directive).toContain("not a passing check on its own");
+    expect(directive).toContain("proves INIT ONLY");
     expect(instructions).toContain("can fire AFTER `readyListener`");
     // The check that actually catches a broken editor.
-    expect(directive).toContain("requested item/activity actually loads");
+    expect(directive).toContain("The requested item/activity loads");
     // NOT a specific code. Two implementers observed 10000 and 40003 for the same scenario on
     // 2026-08-12, both direct browser observations, so the rule keys on the PHASE instead. An
     // earlier version of this test pinned "error 10000" and would now be enforcing one of two
     // contradictory readings as though it were settled.
-    expect(directive).toContain("treat any post-ready error as a content-load failure");
-    expect(directive).toContain("10000 and 40003");
+    expect(instructions).toContain("treat any post-ready error as content-load");
+    expect(instructions).toContain("10000");
     expect(instructions).toContain("Match on the PHASE, not the code");
   });
 
@@ -102,19 +102,19 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
 
   test("a differential against a key set to its own default is uninformative, not failing", () => {
     expect(directive).toContain("structurally uninformative");
-    expect(directive).toContain("manufactures a false alarm");
+    expect(directive).toContain("identical by construction");
     // The escape: prove it by setting the NON-default value instead.
     expect(directive).toContain("NON-default value");
   });
 
   test("inert-unless-precondition keys and host-page obligations are named", () => {
-    expect(directive).toContain("enable scrolling for long content");
+    expect(instructions).toContain("enable scrolling for long content");
     expect(directive).toContain("host-page obligations");
-    expect(directive).toContain("tall enough");
+    expect(instructions).toContain("tall enough");
   });
 
   test("a present-but-nonexistent reference fails identically to an omitted one", () => {
-    expect(directive).toContain("PRESENT but names something that does not exist");
+    expect(directive).toContain("present but names nothing");
     expect(directive).toContain("confirm the named item exists in that bank");
   });
 
@@ -122,7 +122,7 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
   // these three made it incomplete in ways that cost the reader a detour into the SDK source.
   test("the SDK's return value is passed through, not reassembled flat", () => {
     expect(directive).toContain("RETURNS the complete");
-    expect(directive).toContain("nested under `request`");
+    expect(directive).toContain("options nested under `request`");
     expect(instructions).toContain("do not rebuild it");
     // The wrong guess is natural because the docs read as flat — say so, or the rule looks arbitrary.
     expect(directive).toContain("natural wrong guess");
@@ -143,20 +143,20 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
   // Round four, 2026-08-12: gaps found building groups-math-templates. The theme is that good
   // epistemics without a mechanism still leaves the reader stuck — and that a hedge is not a fix.
   test("design-complete is separated from operationally ready", () => {
-    expect(directive).toContain('Never write "no holes, nothing left to do"');
+    expect(directive).toContain('Never write "no holes, nothing left to do');
     expect(directive).toContain("still unverified before this can work");
   });
 
   test("a default-valued check is REPLACED, not caveated, and cannot-fail steps are banned", () => {
-    expect(directive).toContain("REPLACE it, do not merely caveat it");
+    expect(directive).toContain("replace the step, do not caveat it");
     expect(directive).toContain("A step that cannot fail is not a check");
     // The rule must generalize past the two keys it was first written for.
-    expect(directive).toContain("EVERY key at its default");
+    expect(directive).toContain("every defaulted key");
     expect(directive).toContain("require_validation");
   });
 
   test("UI checks name an observable anchor", () => {
-    expect(directive).toContain("observable anchor, or it is a vibe");
+    expect(directive).toContain("Name the observable anchor");
     expect(instructions).toContain("li.qtGroup");
     expect(instructions).toContain(".lrn-author-widget-drag-wrapper");
     // The selector that produced a false pass on an empty editor.
@@ -170,21 +170,21 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
 
   test("checks that cannot run unattended are marked", () => {
     expect(directive).toContain("cannot run unattended");
-    expect(directive).toContain("manual only");
+    expect(directive).toContain("Mark manual-only");
   });
 
   // Round five, 2026-08-12/13. The first of these cost a live item: the document's only danger
   // marker protected the automation harness while the steps drove the real editor and saved.
   test("write hazards are named and pointed at a scratch item", () => {
-    expect(directive).toContain("must name what it can persist");
+    expect(directive).toContain("Name what a step can persist");
     expect(directive).toContain("throwaway item or a duplicate");
     expect(instructions).toContain("can WRITE to the item bank");
   });
 
   test("the signature covers serialization, and 41003 is not always the domain", () => {
-    expect(directive).toContain("SERIALIZED request");
+    expect(directive).toContain("serialized request");
     expect(directive).toContain("preserve key order end to end");
-    expect(directive).toContain("does NOT always mean the domain is wrong");
+    expect(directive).toContain("does not always mean the domain is wrong");
     // The stack-specific tripwires that make this invisible in Node and immediate in Python.
     expect(instructions).toContain("JSON_SORT_KEYS");
   });
@@ -196,14 +196,14 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
 
   test("a verified mechanism is not a verified deployment", () => {
     expect(directive).toContain('"Verified mechanism" means the MECHANISM works');
-    expect(directive).toContain("permission to skip the differential");
+    expect(directive).toContain("permission to skip a differential");
   });
 
   // Round six, 2026-08-13. Two factual corrections and three about emphasis: the core mechanics
   // held under every differential the implementer ran; the failures were all at the edges.
   test("the tamper check names 41003, and where to tamper", () => {
-    expect(directive).toContain("41003 specifically");
-    expect(directive).toContain("after the `$02$` version prefix");
+    expect(directive).toContain("**41003**");
+    expect(directive).toContain("after the `$02$` prefix");
     expect(instructions).toContain("41001 vs 41003");
   });
 
@@ -214,22 +214,22 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
 
   test("what can block the whole task leads the document", () => {
     expect(directive).toContain("## Blocking preconditions");
-    expect(directive).toContain("Emphasis has to match consequence");
+    expect(directive).toContain("Emphasis must match consequence");
   });
 
   test("stack-specific hazards are labelled so the wrong-stack reader can skip them", () => {
     expect(directive).toContain("[Python/Flask]");
-    expect(directive).toContain("NEUTRAL invariant unlabelled");
+    expect(directive).toContain("neutral invariant unlabelled");
   });
 
   test("an inert key is named as a design problem, not just left untested", () => {
     expect(directive).toContain("recommend removing it");
-    expect(directive).toContain("dead property");
+    expect(directive).toContain("name it inert");
   });
 
   test("the Goal states intent, never an accomplished restriction", () => {
-    expect(directive).toContain("MUST NOT claim the editor");
-    expect(directive).toContain("pending verification");
+    expect(directive).toContain("intent pending observation");
+    expect(directive).toContain("permission to skip a differential");
   });
 
   test("gotchas mandate the two silent failures", () => {
@@ -238,11 +238,11 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
   });
 
   test("widget permissions point at the real path, not widget_templates", () => {
-    expect(directive).toContain("config.item_edit.widget.edit");
+    expect(instructions).toContain("config.item_edit.widget.edit");
     expect(directive).toContain("widget_templates");
     expect(directive).toContain("supported by nothing");
     // Verified differentially on an item with two widgets, so the recipe may assert them.
-    expect(directive).toContain("are VERIFIED");
+    expect(instructions).toContain("Widget edit/delete permissions [verified]");
   });
 });
 

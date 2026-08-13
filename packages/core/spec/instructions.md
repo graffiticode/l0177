@@ -50,6 +50,18 @@ There is no in-UI view switching, so the view you use *is* the mode:
 All four are modeled: a member or property a view doesn't define is dropped with a warning,
 never passed through.
 
+**A list request is a VIEW CONFIGURATION, never a data query.** "List activities with titles,
+references and status, 15 per page", "only show items tagged Subject: Math", "show authors only
+their own published items" all describe what an embedded Learnosity browser should RENDER — they
+are answered with `item-list` / `activity-list` and that view's own options (`limit`, `status`,
+`title-show`, `title-show-reference`, `filter-restricted` …), never with a query, a `filter`
+expression, or a `FETCH`. The phrasing overlaps with data retrieval on purpose — that is how people
+describe a list — but this dialect configures a UI, it does not fetch rows. A program that emits a
+query expression instead of an `author-embed` head is wrong even if it parses: two such requests
+were measured on 2026-08-13, one rejected as out of scope and one answered with
+`filter { status: { in: [...] } }`, which compiled and would have entered the corpus as training
+data teaching the same mistake.
+
 **Members are view-scoped, and so are their properties.** A member the view doesn't accept is
 **dropped with a warning** — Learnosity ignores it in that mode. Don't attach `widget`/`settings` to a
 browser view: an item browser has no widgets to edit or delete.

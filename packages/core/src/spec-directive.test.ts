@@ -247,6 +247,21 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
 });
 
 describe("instructions.md keeps the canonical knowledge honest", () => {
+  // 2026-08-13: two of 23 corpus prompts hit the same boundary, in opposite directions — the scope
+  // gate rejected "List activities with titles, references and status, 15 per page" as a data
+  // query, and the generator answered "only show published and unpublished activities" with
+  // `filter { status: { in: [...] } }`, a FETCH expression that compiled. Configuring what an
+  // embedded browser renders reads like data retrieval and is not.
+  test("a list request is view configuration, not a data query", () => {
+    expect(instructions).toContain("never a data query");
+    expect(instructions).toContain("it does not fetch rows");
+    const scope = JSON.parse(
+      readFileSync(fileURLToPath(new URL("../spec/scope.json", import.meta.url)), "utf-8"),
+    );
+    expect(scope.in_scope.join(" ")).toContain("CONFIGURING AN EMBEDDED BROWSER VIEW");
+    expect(scope.out_of_scope.join(" ")).toContain("WHO consumes the result");
+  });
+
   test("the restriction mechanism is recorded as verified, with its group references", () => {
     expect(instructions).toContain("MECHANISM VERIFIED");
     expect(instructions).toContain("question_type_groups");

@@ -227,7 +227,13 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
   confirmed key restricts by question type. So `allow-widgets` remains **design intent**: name the
   types in the recipe, and carry the restriction as a **verification step**. Finer-grained control is
   possible only by naming individual `template_references`, whose values are opaque and discoverable
-  solely from the running editor (the `data-lrn-qe-template-reference` attribute on each picker tile).
+  solely from the running editor (the `data-lrn-qe-template-reference` attribute on each picker
+  tile). **That attribute is NOT a route to a portable restriction [implementer, 2026-08-13].** It
+  holds an opaque, ACCOUNT-SPECIFIC UUID (`457fe101-…` = "Cloze with text"), not a type name like
+  `clozetext`, so reading it tells you this consumer's template ids and nothing transferable. Point
+  at it only as "how to discover YOUR account's template references", never as the discovery path
+  for a per-type restriction — the earlier wording named the right DOM node while implying a
+  usefulness it does not have.
 
 - **⚠ These do NOT restrict the picker [verified]:**
   `config.dependencies.question_editor_api.init_options.widgetTypes` (no effect; absent from the
@@ -282,6 +288,11 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
   touches — `edit: false` removes exactly the two per-widget ones.) The recipe may state these
   as fact. Do **not** use `config.widget_templates.edit`/`.delete`; that path is supported by
   nothing.
+- **41001 vs 41003 — a tampered signature can fail the WRONG way [implementer, 2026-08-13].** The
+  signature is version-prefixed (`$02$…`). Corrupting a character in the PREFIX yields **41001**, a
+  parameter-format complaint, not the **41003** signature mismatch. Both are 401-class, so a check
+  written as "flip a character and confirm a 401" passes on 41001 while never exercising the signing
+  path at all. Tamper inside the signature BODY, after the prefix, and assert on 41003 specifically.
 - **⚠ The signature covers the SERIALIZED request [implementer, 2026-08-12].** Signing with the SDK
   is necessary and not sufficient: the payload must reach the browser byte-for-byte. Anything that
   re-serializes or reorders it between signing and `LearnosityAuthor.init()` invalidates the

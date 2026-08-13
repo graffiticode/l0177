@@ -199,6 +199,34 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
     expect(directive).toContain("permission to skip the differential");
   });
 
+  // Round six, 2026-08-13. Two factual corrections and three about emphasis: the core mechanics
+  // held under every differential the implementer ran; the failures were all at the edges.
+  test("the tamper check names 41003, and where to tamper", () => {
+    expect(directive).toContain("41003 specifically");
+    expect(directive).toContain("after the `$02$` version prefix");
+    expect(instructions).toContain("41001 vs 41003");
+  });
+
+  test("template-reference UUIDs are not a portable per-type restriction", () => {
+    expect(instructions).toContain("ACCOUNT-SPECIFIC UUID");
+    expect(instructions).toContain("nothing transferable");
+  });
+
+  test("what can block the whole task leads the document", () => {
+    expect(directive).toContain("## Blocking preconditions");
+    expect(directive).toContain("Emphasis has to match consequence");
+  });
+
+  test("stack-specific hazards are labelled so the wrong-stack reader can skip them", () => {
+    expect(directive).toContain("[Python/Flask]");
+    expect(directive).toContain("NEUTRAL invariant unlabelled");
+  });
+
+  test("an inert key is named as a design problem, not just left untested", () => {
+    expect(directive).toContain("recommend removing it");
+    expect(directive).toContain("dead property");
+  });
+
   test("the Goal states intent, never an accomplished restriction", () => {
     expect(directive).toContain("MUST NOT claim the editor");
     expect(directive).toContain("pending verification");

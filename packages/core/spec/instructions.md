@@ -357,4 +357,4 @@ to match on the phase) and still accepted "a 401-class error" for a tampered sig
 on a 41001 prefix corruption without exercising the signing path). Two statements of one fact age
 independently, so there is one.
 
-OUT_OF_SCOPE: authoring item **content** (→ L0176); assessment delivery and analytics (future L0177 modes); emitting runnable host-language code (the recipe is language-neutral).
+OUT_OF_SCOPE: authoring item **content** (→ L0176); item-bank CRUD (Data API), assessment delivery (Items API) and analytics (Reports API) — each a separate sibling dialect, none built yet, and none a future mode of L0177; emitting runnable host-language code (the recipe is language-neutral).

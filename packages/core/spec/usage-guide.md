@@ -62,5 +62,8 @@ that has not been observed in a running editor.
 ## Out of scope
 
 - Authoring item **content** → L0176.
-- Programmatic item-bank CRUD (Data API), assessment delivery (Items API), analytics (Reports API) → future L0177 modes.
+- Programmatic item-bank CRUD (Data API), assessment delivery (Items API), analytics (Reports API)
+  → separate sibling dialects, none of which exists yet. Not future L0177 modes: L0177 covers the
+  Author API, and that coverage is complete. If you are asked for one of these, say no dialect
+  covers it rather than stretching this one.
 - Runnable host-language code — the recipe is a language-neutral procedure you implement yourself.

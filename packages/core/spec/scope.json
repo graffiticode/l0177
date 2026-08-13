@@ -11,8 +11,8 @@
   ],
   "out_of_scope": [
     "Authoring the assessment item CONTENT itself (stems, options, answer keys, passages) — that is L0176; this dialect describes how to INTEGRATE the authoring experience, it does not write items",
-    "Creating/managing items programmatically via the Data API (item bank CRUD) — that is L0176's surface; a Data API integration mode may be added to L0177 later",
-    "Delivering/administering assessments to learners (Items API) and reading responses/scores/reports (Reports API) — future L0177 modes",
+    "Creating/managing items programmatically via the Data API (item bank CRUD) — the item CONTENT being written is L0176's surface, and the Data API operation itself (endpoints, actions, paging, write safety) belongs to a separate sibling dialect that does not exist yet. It is NOT a future mode of L0177: the Data API is server-to-server and fails closed, so the differential-verification rules this dialect is built on do not apply to it",
+    "Delivering/administering assessments to learners (Items API) and reading responses/scores/reports (Reports API) — each belongs to its own sibling dialect, not to L0177. No such dialect exists yet; say so rather than routing the request here. L0177 covers the Author API only, and its coverage of that API is complete, not partial",
     "Defining custom assessment player templates (activity_edit.player_templates) — past a name and reference these are Assess API configuration (labelBundle, regions, navigation) passed through the Author API, so describing them means describing Assess API, which this dialect does not cover. Pick a template by reference with default-player-template / enabled-player-templates instead",
     "Integrations for any platform other than Learnosity",
     "Emitting runnable host-language code — the recipe is a language-neutral procedure the caller implements in their own stack"

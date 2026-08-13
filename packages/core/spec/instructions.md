@@ -282,6 +282,23 @@ to the client as *documented-but-unconfirmed*, never asserted as fact.
   touches — `edit: false` removes exactly the two per-widget ones.) The recipe may state these
   as fact. Do **not** use `config.widget_templates.edit`/`.delete`; that path is supported by
   nothing.
+- **⚠ The signature covers the SERIALIZED request [implementer, 2026-08-12].** Signing with the SDK
+  is necessary and not sufficient: the payload must reach the browser byte-for-byte. Anything that
+  re-serializes or reorders it between signing and `LearnosityAuthor.init()` invalidates the
+  signature and yields **41003** — whose message names `security.domain`, so the API's own error
+  text sends you to a domain that is already correct. Known tripwires: Flask's `jsonify` sorts keys
+  by default (`JSON_SORT_KEYS`); Express's `res.json()` preserves insertion order, which is why the
+  hazard is invisible in Node and immediate in Python. This is language-NEUTRAL as a rule (do not
+  re-serialize; preserve key order end to end) with stack-specific ways to violate it.
+- **⚠ Driving the editor can WRITE to the item bank [implementer, 2026-08-12].** The Author API
+  verification steps are not read-only: exercising the widget Save path persists to the real item
+  behind `reference`. Verification should run against a throwaway item or a duplicate, never the
+  design's own reference. One implementer modified a live item following steps that never said so.
+- **Affordances a standalone mount does not have [implementer, 2026-08-12].** `item.back` renders no
+  Back control in a standalone `item_edit` mount, because there is no list to return to — a
+  differential on it produces nothing in either direction. Similarly, stock templates ship with
+  `valid_response` populated, so an "unvalidated save" state is not reachable without destructive
+  editing. Do not mandate a check for an affordance the view never renders.
 - **Observable anchors [reported by an implementer, 2026-08-12 — not independently re-run].** A UI
   check needs something specific to look at, or it becomes "does it look right", which is exactly
   what fails open. Known anchors: the question-type picker's groups are `li.qtGroup`; an authored

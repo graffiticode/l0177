@@ -173,6 +173,32 @@ describe("spec-directive.md keeps the rules the live API taught us", () => {
     expect(directive).toContain("manual only");
   });
 
+  // Round five, 2026-08-12/13. The first of these cost a live item: the document's only danger
+  // marker protected the automation harness while the steps drove the real editor and saved.
+  test("write hazards are named and pointed at a scratch item", () => {
+    expect(directive).toContain("must name what it can persist");
+    expect(directive).toContain("throwaway item or a duplicate");
+    expect(instructions).toContain("can WRITE to the item bank");
+  });
+
+  test("the signature covers serialization, and 41003 is not always the domain", () => {
+    expect(directive).toContain("SERIALIZED request");
+    expect(directive).toContain("preserve key order end to end");
+    expect(directive).toContain("does NOT always mean the domain is wrong");
+    // The stack-specific tripwires that make this invisible in Node and immediate in Python.
+    expect(instructions).toContain("JSON_SORT_KEYS");
+  });
+
+  test("a step must be able to pass as well as fail, in THIS mount", () => {
+    expect(directive).toContain("neither is one that cannot pass");
+    expect(instructions).toContain("no list to return to");
+  });
+
+  test("a verified mechanism is not a verified deployment", () => {
+    expect(directive).toContain('"Verified mechanism" means the MECHANISM works');
+    expect(directive).toContain("permission to skip the differential");
+  });
+
   test("the Goal states intent, never an accomplished restriction", () => {
     expect(directive).toContain("MUST NOT claim the editor");
     expect(directive).toContain("pending verification");
